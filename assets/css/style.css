@@ -481,3 +481,9 @@ body[data-view="tournament"] .overlay, body[data-view="shop"] .overlay, body[dat
 @keyframes route { to { stroke-dashoffset: -260; } }
 .paper-map .section h3 { color: #6b5a33; }
 @media (prefers-reduced-motion: reduce) { .map-route { animation: none; } }
+
+/* Машинка: пропечатывание букв */
+.tw-rest { visibility: hidden; }
+.tw-caret { display: none; }
+.tw-caret.on { display: inline-block; width: .55em; height: 1.05em; margin-bottom: -.15em; background: #1f1f1f; animation: tw-blink .5s steps(1) infinite; }
+@keyframes tw-blink { 50% { opacity: 0; } }

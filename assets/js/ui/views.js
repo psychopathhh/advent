@@ -82,8 +82,43 @@ export function letterView(node, ctx) {
   if (teaser) actions.append(h('button', { class: 'btn btn-gold', onclick: () => ctx.onTeaser(teaser.id) }, '🎁 Подарок под ёлочкой'));
   actions.append(h('button', { class: 'btn btn-ghost', onclick: ctx.onClose }, 'К ёлке'));
   body.append(actions);
+  if (paper === 'typewriter') typeOut(letter, [...body.querySelectorAll(':scope > .kicker, :scope > h2, .hand p, :scope > .signature')]);
 
   return h('div', { 'data-scene': paper === 'sea' ? 'sea' : null }, closeBtn(ctx.onClose), letter);
+}
+
+/** Машинка: буквы пропечатываются по очереди. Место под текст занято сразу, поэтому ничего не прыгает; тап — допечатать. */
+function typeOut(letter, els) {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  const parts = els.filter((el) => el.textContent).map((el) => {
+    const text = el.textContent;
+    const done = h('span', {}), caret = h('span', { class: 'tw-caret' }), rest = h('span', { class: 'tw-rest' }, text);
+    el.textContent = '';
+    el.append(done, caret, rest);
+    return { text, done, caret, rest };
+  });
+  const total = parts.reduce((a, p) => a + p.text.length, 0);
+  if (!total) return;
+  const step = Math.max(6, Math.min(28, 3500 / total));
+  let i = 0, pos = 0, timer = 0;
+  const finish = () => {
+    clearTimeout(timer);
+    for (const p of parts) { p.done.textContent = p.text; p.rest.remove(); p.caret.remove(); }
+    letter.removeEventListener('click', finish);
+  };
+  const tick = () => {
+    if (!letter.isConnected) return;
+    const p = parts[i];
+    if (!p) return finish();
+    p.caret.classList.add('on');
+    pos += 1;
+    p.done.textContent = p.text.slice(0, pos);
+    p.rest.textContent = p.text.slice(pos);
+    if (pos >= p.text.length) { p.caret.remove(); p.rest.remove(); i += 1; pos = 0; }
+    timer = setTimeout(tick, p.text[pos - 1] === ' ' ? step * 0.5 : step);
+  };
+  letter.addEventListener('click', finish);
+  timer = setTimeout(tick, 450);
 }
 
 /** Шапка письма-карты: пунктирный маршрут от «ты» к «я». */
