@@ -21,9 +21,12 @@ const GIFT_SPOTS = [
  * nodes: [{ id, kind: 'ball'|'bell'|'star', slot, opensAt, accent, status: 'locked'|'new'|'open', label }]
  * gifts: [{ id, accent, isNew }]
  * mascot: { arrived: bool, name? }
+ * sky: { visible: bool, p: 0..1 } — луна и солнце (парные браслеты), сближаются к Новому году
  */
-export function renderTree(svg, { nodes, gifts, mascot }) {
+export function renderTree(svg, { nodes, gifts, mascot, sky }) {
   svg.replaceChildren();
+  // с луной и солнцем над ёлкой нужно больше неба
+  svg.setAttribute('viewBox', sky?.visible ? '0 -44 360 544' : '0 0 360 500');
   const defs = s('defs', {},
     s('linearGradient', { id: 'g-pine', x1: '0', y1: '0', x2: '0', y2: '1' },
       s('stop', { offset: '0', 'stop-color': '#1f5a45' }),
@@ -42,6 +45,13 @@ export function renderTree(svg, { nodes, gifts, mascot }) {
     s('filter', { id: 'f-glow', x: '-50%', y: '-50%', width: '200%', height: '200%' },
       s('feGaussianBlur', { stdDeviation: '2.2', result: 'b' }),
       s('feMerge', {}, s('feMergeNode', { in: 'b' }), s('feMergeNode', { in: 'SourceGraphic' }))),
+    s('filter', { id: 'f-sky', x: '-120%', y: '-120%', width: '340%', height: '340%' },
+      s('feGaussianBlur', { in: 'SourceGraphic', stdDeviation: '5', result: 'b1' }),
+      s('feGaussianBlur', { in: 'SourceGraphic', stdDeviation: '1.8', result: 'b2' }),
+      s('feMerge', {}, s('feMergeNode', { in: 'b1' }), s('feMergeNode', { in: 'b1' }), s('feMergeNode', { in: 'b2' }), s('feMergeNode', { in: 'SourceGraphic' }))),
+    s('mask', { id: 'm-crescent', maskUnits: 'userSpaceOnUse', x: -30, y: -30, width: 60, height: 60 },
+      s('rect', { x: -30, y: -30, width: 60, height: 60, fill: '#fff' }),
+      s('circle', { cx: 6.4, cy: -4, r: 10, fill: '#000' })),
     s('filter', { id: 'f-soft', x: '-80%', y: '-80%', width: '260%', height: '260%' },
       s('feGaussianBlur', { stdDeviation: '7' })),
   );
@@ -91,6 +101,9 @@ export function renderTree(svg, { nodes, gifts, mascot }) {
 
   // Подарки под ёлкой
   gifts.slice(-GIFT_SPOTS.length).forEach((g, i) => svg.append(giftEl(g, GIFT_SPOTS[i])));
+
+  // Луна и солнце в небе
+  if (sky?.visible) svg.append(skyEl(sky.p));
 
   // Хранитель
   svg.append(mascotEl(mascot));
@@ -252,6 +265,30 @@ function giftEl(gift, spot) {
       s('rect', { x: x - 20, y: y + 6, width: 40, height: 15, rx: 7.5, fill: '#E8C27A' }),
       s('text', { class: 'badge-new', x, y: y + 16.5, 'text-anchor': 'middle' }, 'Новое'),
     );
+  }
+  return g;
+}
+
+// Луна (у неё) слева, солнце (у него) справа. p: 0 — по краям неба (29.11), 1 — встретились над звездой (31.12)
+function skyEl(p) {
+  const lerp = (a, b) => a + (b - a) * p;
+  const lift = Math.sin(p * Math.PI) * 8; // идут по дуге
+  const y = lerp(76, -14) - lift;
+  const met = p >= 1;
+  const g = s('g', { class: `sky${met ? ' met' : ''}`, 'data-sky': '1', role: 'button', tabindex: 0, 'aria-label': met ? 'Луна и солнце встретились' : 'Луна и солнце' });
+  // солнце
+  const sun = s('g', { transform: `translate(${lerp(326, 191)} ${y})`, class: 'sky-sun' });
+  const sunGlow = s('g', { filter: 'url(#f-sky)', class: 'sky-glow' },
+    s('path', { d: 'M0 -14v-5M0 14v5M-14 0h-5M14 0h5M10 -10l3.5 -3.5M-10 10l-3.5 3.5M10 10l3.5 3.5M-10 -10l-3.5 -3.5', stroke: '#F6C453', 'stroke-width': 2.2, 'stroke-linecap': 'round' }),
+    s('circle', { r: 9.5, fill: '#F6C453' }));
+  sun.append(s('circle', { r: 22, fill: 'transparent' }), sunGlow, s('circle', { r: 9.5, fill: 'none', stroke: '#E89B2C', 'stroke-width': 1 }));
+  // луна — белый полумесяц рожками к солнцу
+  const moon = s('g', { transform: `translate(${lerp(34, 170)} ${y})`, class: 'sky-moon' });
+  moon.append(s('circle', { r: 20, fill: 'transparent' }),
+    s('g', { filter: 'url(#f-sky)', class: 'sky-glow' }, s('circle', { r: 12, fill: '#ffffff', mask: 'url(#m-crescent)' })));
+  g.append(sun, moon);
+  if (met) {
+    g.append(s('path', { class: 'sky-heart', d: `M180 ${y - 18} c-3 -4 -9 -1 -6 4 l6 6 l6 -6 c3 -5 -3 -8 -6 -4z`, fill: '#C8102E' }));
   }
   return g;
 }

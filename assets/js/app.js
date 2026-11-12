@@ -146,12 +146,13 @@ function tick() {
   });
   const w2 = allNodes().find((n) => n.id === 'w2');
   const mascot = { arrived: !!(w2 && isOpen(w2, t)), name: app.state.mascot?.name || null };
+  const sky = skyState(t);
 
   // Перерисовываем ёлку, только если что-то поменялось
-  const sig = JSON.stringify([nodes.map((n) => n.status + n.played.join()), gifts.map((g) => g.id + g.isNew), mascot.arrived]);
+  const sig = JSON.stringify([nodes.map((n) => n.status + n.played.join()), gifts.map((g) => g.id + g.isNew), mascot.arrived, sky.visible && sky.p]);
   if (sig !== app.sig) {
     app.sig = sig;
-    renderTree($('tree'), { nodes, gifts, mascot });
+    renderTree($('tree'), { nodes, gifts, mascot, sky });
     setTimeout(() => announceAchievements(achCtx()), 400);
     const newGift = gifts.some((g) => g.isNew);
     $('tree-tip').textContent = newGift ? 'Под ёлочкой новый подарок 🎁' : '';
@@ -228,6 +229,7 @@ function bindTree() {
     const nodeEl = e.target.closest('[data-node]');
     const giftEl = e.target.closest('[data-gift]');
     const mascotEl = e.target.closest('[data-mascot]');
+    if (e.target.closest('[data-sky]')) return onSky();
     if (nodeEl) return onNode(nodeEl.dataset.node);
     if (giftEl) return (location.hash = '#/t/' + giftEl.dataset.gift);
     if (mascotEl) return onMascot();
@@ -265,6 +267,27 @@ function onNode(id) {
   }
   vibrate(10);
   location.hash = '#/w/' + id;
+}
+
+// Луна и солнце: появляются с колокольчиком и каждый день сближаются; 31.12 встречаются
+function skyState(t) {
+  const bell = allNodes().find((n) => n.kind === 'bell');
+  const star = allNodes().find((n) => n.kind === 'star');
+  if (!bell || !star || !isOpen(bell, t)) return { visible: false, p: 0 };
+  const day = 86400000;
+  const start = new Date(bell.opensAt).getTime(), end = new Date(star.opensAt).getTime();
+  const total = Math.round((end - start) / day);
+  const passed = Math.min(total, Math.max(0, Math.floor((t - start) / day)));
+  return { visible: true, p: total > 0 ? Math.round((passed / total) * 1000) / 1000 : 1, left: Math.max(0, Math.ceil((end - t) / day)) };
+}
+
+function onSky() {
+  const c = app.content;
+  const { left } = skyState(now());
+  if (!left) return toast(c.skyMetPhrase || 'Солнце и луна встретились. С Новым годом ❤', 5000);
+  const list = c.skyPhrases?.length ? c.skyPhrases : ['Луна у меня, солнце у тебя.'];
+  const word = left % 10 === 1 && left % 100 !== 11 ? 'день' : [2, 3, 4].includes(left % 10) && ![12, 13, 14].includes(left % 100) ? 'дня' : 'дней';
+  toast(`${list[Math.floor(Math.random() * list.length)]} Солнце и луна встретятся через ${left} ${word}.`, 5000);
 }
 
 function onMascot() {

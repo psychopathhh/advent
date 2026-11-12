@@ -487,3 +487,11 @@ body[data-view="tournament"] .overlay, body[data-view="shop"] .overlay, body[dat
 .tw-caret { display: none; }
 .tw-caret.on { display: inline-block; width: .55em; height: 1.05em; margin-bottom: -.15em; background: #1f1f1f; animation: tw-blink .5s steps(1) infinite; }
 @keyframes tw-blink { 50% { opacity: 0; } }
+
+/* Луна и солнце (парные браслеты) */
+.tree .sky { cursor: pointer; outline: none; }
+.tree .sky .sky-glow { animation: sky-shine 3.2s ease-in-out infinite; }
+.tree .sky .sky-moon .sky-glow { animation-delay: -1.6s; }
+.tree .sky.met .sky-heart { animation: twinkle 1.6s ease-in-out infinite; }
+@keyframes sky-shine { 0%, 100% { opacity: .9; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tree .sky .sky-glow, .tree .sky.met .sky-heart { animation: none; } }
