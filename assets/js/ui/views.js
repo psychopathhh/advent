@@ -21,11 +21,12 @@ function kickerFor(node) {
 
 /** Конверт с печатью → по тапу письмо. */
 export function envelopeView(node, onOpen, onClose) {
-  const seal = h('button', { class: 'seal', 'aria-label': 'Сломать печать', onclick: onOpen },
-    node.kind === 'star' ? '★' : node.kind === 'bell' ? '♪' : String(node.slot));
-  return h('div', { '--accent': node.accent },
+  const wax = node.paper === 'seal';
+  const seal = h('button', { class: `seal${wax ? ' seal-wax' : ''}`, 'aria-label': 'Сломать печать', onclick: onOpen },
+    wax ? pawIcon() : node.kind === 'star' ? '★' : node.kind === 'bell' ? '♪' : String(node.slot));
+  return h('div', { '--accent': node.accent, 'data-scene': node.paper === 'sea' ? 'sea' : null },
     closeBtn(onClose),
-    h('div', { class: 'envelope' },
+    h('div', { class: `envelope${wax ? ' envelope-wax' : ''}` },
       seal,
       h('p', { class: 'envelope-title' }, kickerFor(node)),
       h('p', { class: 'envelope-hint' }, 'Тапни по печати')));
@@ -34,16 +35,22 @@ export function envelopeView(node, onOpen, onClose) {
 /** Письмо шара. ctx: { content, state, now, onClose, onTeaser } */
 export function letterView(node, ctx) {
   const f = (t) => fill(t, ctx.content);
-  const letter = h('article', { class: `letter${node.dark ? ' dark' : ''}`, '--accent': node.accent });
-  letter.append(
+  const paper = node.paper || '';
+  const letter = h('article', { class: `letter${node.dark ? ' dark' : ''}${paper ? ' paper-' + paper : ''}`, '--accent': node.accent });
+  const body = h('div', { class: 'letter-body' });
+  if (paper === 'ticket') letter.append(h('div', { class: 'ticket-head' }, h('span', {}, 'Билет на финал'), h('span', {}, 'ряд 1 · место 1')));
+  if (paper === 'sea') letter.append(h('div', { class: 'pine-leaves', 'aria-hidden': 'true' }), h('div', { class: 'pine-window', 'aria-hidden': 'true' }));
+  if (paper === 'seal') letter.append(h('div', { class: 'wax-mark', 'aria-hidden': 'true' }, pawIcon()));
+  letter.append(body);
+  body.append(
     h('p', { class: 'kicker' }, kickerFor(node)),
     h('h2', {}, f(node.title)),
     h('div', { class: 'hand' }, (node.letter || []).map((p) => h('p', {}, f(p)))),
     h('p', { class: 'signature' }, ctx.content.signature || ''),
   );
 
-  if (node.inBox) letter.append(section('Что в коробке', h('p', { class: 'muted', style: { margin: 0 } }, f(node.inBox))));
-  if (node.mission?.length) letter.append(section('Миссия вечера', h('ul', {}, node.mission.map((m) => h('li', {}, f(m))))));
+  if (node.inBox) body.append(section('Что в коробке', h('p', { class: 'muted', style: { margin: 0 } }, f(node.inBox))));
+  if (node.mission?.length) body.append(section('Миссия вечера', h('ul', {}, node.mission.map((m) => h('li', {}, f(m))))));
 
   if (node.stakes) {
     const labels = node.stakesLabels || { him: 'Выиграешь ты', her: 'Выиграю я' };
@@ -52,30 +59,39 @@ export function letterView(node, ctx) {
         h('div', { class: 'stake' }, h('b', {}, labels.him), f(node.stakes.him)),
         h('div', { class: 'stake' }, h('b', {}, labels.her), f(node.stakes.her))),
       node.stakesNote ? h('p', { class: 'stake-note' }, f(node.stakesNote)) : null);
-    letter.append(section('Ставки', box));
+    body.append(section('Ставки', box));
   }
 
   if (node.quest) {
-    letter.append(section(`Мини-квест · +${node.quest.reward} ❄`,
+    body.append(section(`Мини-квест · +${node.quest.reward} ❄`,
       h('div', { class: 'quest' }, h('span', {}, '🎯'), h('span', {}, f(node.quest.text)))));
   }
 
-  if (node.quiz?.length) letter.append(section('Вопросы обо мне', quizView(node, ctx)));
+  if (node.quiz?.length) body.append(section('Вопросы обо мне', quizView(node, ctx)));
 
-  if ((ctx.state.codes || []).includes(node.id)) letter.append(section('🔑 Кодовое слово', codeForm(node, ctx)));
+  if ((ctx.state.codes || []).includes(node.id)) body.append(section('🔑 Кодовое слово', codeForm(node, ctx)));
 
   const ny = ctx.content.newYearLetter;
   if (node.kind === 'star' && ny && isOpen(ny, ctx.now) && ny.text) {
-    letter.append(section(ny.title || 'С Новым годом', h('div', { class: 'hand' }, ny.text.map((p) => h('p', {}, f(p))))));
+    body.append(section(ny.title || 'С Новым годом', h('div', { class: 'hand' }, ny.text.map((p) => h('p', {}, f(p))))));
   }
 
   const actions = h('div', { class: 'letter-actions' });
   const teaser = (ctx.state.teasers || []).find((t) => t.weekId === node.id && ctx.now >= new Date(t.revealAt) && teaserReady(t));
   if (teaser) actions.append(h('button', { class: 'btn btn-gold', onclick: () => ctx.onTeaser(teaser.id) }, '🎁 Подарок под ёлочкой'));
   actions.append(h('button', { class: 'btn btn-ghost', onclick: ctx.onClose }, 'К ёлке'));
-  letter.append(actions);
+  body.append(actions);
 
-  return h('div', {}, closeBtn(ctx.onClose), letter);
+  return h('div', { 'data-scene': paper === 'sea' ? 'sea' : null }, closeBtn(ctx.onClose), letter);
+}
+
+function pawIcon() {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '-12 -14 24 24');
+  svg.setAttribute('class', 'paw');
+  svg.innerHTML = '<ellipse cx="0" cy="4" rx="6" ry="5"/><circle cx="-6.5" cy="-4" r="2.6"/><circle cx="-2.2" cy="-8" r="2.6"/><circle cx="2.8" cy="-7.6" r="2.6"/><circle cx="7" cy="-3" r="2.6"/>';
+  return svg;
 }
 
 function section(title, body) {

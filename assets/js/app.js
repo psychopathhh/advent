@@ -6,6 +6,7 @@ import { startSnow } from './ui/snow.js';
 import { renderTree } from './ui/tree.js';
 import { toast, vibrate } from './ui/dom.js';
 import { envelopeView, letterView, welcomeView, rulesView, teaserView, tournamentView, flakesView } from './ui/views.js';
+import { setScene } from './ui/scenes.js';
 import { shopView, wardrobeView, achievementsView, announceAchievements, pendingCost, settlePending } from './ui/extras.js';
 
 const $ = (id) => document.getElementById(id);
@@ -297,11 +298,13 @@ function closeOverlay() {
 function hideOverlay() {
   $('overlay').hidden = true;
   $('overlay-inner').replaceChildren();
+  setScene('', $('overlay'));
   document.body.style.overflow = '';
 }
 function showOverlay(el) {
   const ov = $('overlay');
   $('overlay-inner').replaceChildren(el);
+  setScene(el.dataset?.scene || '', ov);
   ov.hidden = false;
   ov.scrollTop = 0;
   document.body.style.overflow = 'hidden';
