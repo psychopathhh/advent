@@ -1,0 +1,11 @@
+{
+  "name": "pod-elochkoy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "init": "node tools/init-state.mjs",
+    "content": "node tools/encrypt-content.mjs",
+    "photo": "node tools/add-photo.mjs",
+    "serve": "node tools/serve.mjs"
+  }
+}

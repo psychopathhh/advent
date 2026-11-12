@@ -1,0 +1,12 @@
+# Открытые тексты и исходники фото — НИКОГДА не в репозиторий
+content/
+.env.local
+
+node_modules/
+.DS_Store
+Thumbs.db
+
+# Концепт и промпт с личными подробностями — только у тебя на компьютере
+CONCEPT.md
+PROMPT.md
+.claude/

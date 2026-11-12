@@ -1,0 +1,31 @@
+name: Открытие шаров
+on:
+  schedule:
+    - cron: '4,14,24,34,44,54 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Выложить ключи наступивших шаров
+        env:
+          RELEASE_KEY: ${{ secrets.RELEASE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          # ручной запуск ждёт до 5,5 ч вперёд — можно нажать Run workflow утром в день шара
+          LOOKAHEAD_MIN: ${{ github.event_name == 'workflow_dispatch' && '330' || '25' }}
+        run: |
+          git config user.name advent
+          git config user.email advent@users.noreply.github.com
+          node tools/release.mjs

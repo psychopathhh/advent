@@ -1,0 +1,10 @@
+{
+  "name": "Под ёлочкой",
+  "short_name": "Под ёлочкой",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0E1A2B",
+  "theme_color": "#0E1A2B",
+  "icons": [{ "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
