@@ -201,7 +201,20 @@ function openCard() {
     h('ul', { class: 'a-list' }, list.map((n) => h('li', {},
       h('div', {}, h('b', {}, name(n)),
         h('div', { class: 'a-hint' }, n.ready ? '✅ горит' : waiting.has(n.id) ? '⏳ зажигается… обнови страницу через минуту' : 'не зажжён')),
-      n.ready ? null : h('button', { class: 'btn btn-gold btn-sm', onclick: async (e) => {
+      n.ready ? h('button', { class: 'btn btn-ghost btn-sm', onclick: async () => {
+        if (!confirm(`Погасить «${name(n)}»? Шар снова станет закрытым. Если он уже успел прочитать письмо — забыть его это не заставит.`)) return;
+        const ok = await mutate(`Погасить ${n.id}`, async (st, files) => {
+          const bytes = await A.repo.readFile('data/keys.json');
+          const keys = bytes ? JSON.parse(new TextDecoder().decode(bytes)) : {};
+          delete keys[n.id];
+          files['data/keys.json'] = jsonBytes(keys);
+        }, 'Шар погашен. У него закроется через 1–2 минуты');
+        if (ok) {
+          n.ready = false;
+          store.set('advent.opening', [...waiting].filter((x) => x !== n.id));
+          renderMain();
+        }
+      } }, 'Погасить') : h('button', { class: 'btn btn-gold btn-sm', onclick: async (e) => {
         if (!confirm(`Зажечь «${name(n)}» прямо сейчас? Отменить будет нельзя.`)) return;
         const b = e.currentTarget; b.disabled = true;
         try {
