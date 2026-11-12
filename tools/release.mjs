@@ -55,6 +55,19 @@ async function publish(items) {
   }
 }
 
+// Открыть указанное сразу, без оглядки на дату
+const OPEN = String(process.env.OPEN || '').split(/[\s,]+/).filter(Boolean);
+if (OPEN.length) {
+  const seals = await readJSON('data/seals.json');
+  const items = [];
+  for (const id of OPEN) {
+    if (!seals[id]) { console.log('Нет такого:', id); continue; }
+    items.push({ id, at: Date.now(), r: C.b64(await C.unseal(priv, seals[id].sealed)) });
+  }
+  if (items.length) await publish(items);
+  process.exit(0);
+}
+
 const due = await pending(Date.now() + LOOKAHEAD);
 if (!due.length) { console.log('Открывать пока нечего.'); process.exit(0); }
 // группируем по времени открытия

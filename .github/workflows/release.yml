@@ -1,8 +1,12 @@
 name: Открытие шаров
+# Шары открывает кошка кнопкой в админке (или Run workflow здесь)
 on:
-  schedule:
-    - cron: '4,14,24,34,44,54 * * * *'
   workflow_dispatch:
+    inputs:
+      open:
+        description: 'Что открыть сразу (id через запятую: w1, w2, p1, w3, w4, w5, w6, ny). Пусто — то, чему пришло время'
+        required: false
+        default: ''
 permissions:
   contents: write
   pages: write
@@ -23,6 +27,7 @@ jobs:
           RELEASE_KEY: ${{ secrets.RELEASE_KEY }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          OPEN: ${{ inputs.open }}
           # ручной запуск ждёт до 5,5 ч вперёд — можно нажать Run workflow утром в день шара
           LOOKAHEAD_MIN: ${{ github.event_name == 'workflow_dispatch' && '330' || '25' }}
         run: |

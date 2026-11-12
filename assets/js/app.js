@@ -1,7 +1,7 @@
 // Точка входа сайта «Под ёлочкой».
 import { syncTime, startAutoSync, now, isPreview, clockSkewed, formatCountdown } from './time.js';
 import { restoreSession, login, logout, loadContent, loadState, store, unlockCode, unlockedCodes, unlockedBonuses, teaserReady } from './data.js';
-import { isReady } from './sealed.js';
+import { isReady, isOpen } from './sealed.js';
 import { startSnow } from './ui/snow.js';
 import { renderTree } from './ui/tree.js';
 import { toast, vibrate } from './ui/dom.js';
@@ -121,7 +121,7 @@ function allNodes() {
 }
 
 function statusOf(node, t) {
-  if (t < new Date(node.opensAt) || !isReady(node)) return 'locked';
+  if (!isOpen(node, t)) return 'locked';
   return seen.has(node.id) ? 'open' : 'new';
 }
 
@@ -143,7 +143,7 @@ function tick() {
     return { id: x.id, accent: node?.accent, isNew: !seenGifts.has(x.id) };
   });
   const w2 = allNodes().find((n) => n.id === 'w2');
-  const mascot = { arrived: !!(w2 && t >= new Date(w2.opensAt)), name: app.state.mascot?.name || null };
+  const mascot = { arrived: !!(w2 && isOpen(w2, t)), name: app.state.mascot?.name || null };
 
   // Перерисовываем ёлку, только если что-то поменялось
   const sig = JSON.stringify([nodes.map((n) => n.status), gifts.map((g) => g.id + g.isNew), mascot.arrived]);
@@ -160,17 +160,17 @@ function tick() {
 
   // Таймер
   const fresh = nodes.find((n) => n.status === 'new');
-  const future = [...allNodes().map((n) => n.opensAt), app.content.newYearLetter?.opensAt]
-    .filter(Boolean).map((d) => new Date(d)).filter((d) => d > t).sort((a, b) => a - b)[0];
-  // время пришло, но ключ шара ещё не выложен (GitHub обычно успевает за минуту-две)
-  const warming = allNodes().find((n) => t >= new Date(n.opensAt) && !isReady(n));
-  if (warming) {
-    $('cd-label').textContent = warming.kind === 'star' ? 'Звезда загорается…' : 'Шар загорается…';
-    $('cd-value').textContent = 'ещё минутку ✨';
-    if (!app.warmTimer) app.warmTimer = setTimeout(() => { app.warmTimer = null; refresh(); }, 20 * 1000);
-  } else if (fresh) {
+  const future = [...allNodes(), app.content.newYearLetter].filter((n) => n && !isOpen(n, t))
+    .map((n) => new Date(n.opensAt)).filter((d) => d > t).sort((a, b) => a - b)[0];
+  // день шара настал, но кошка его ещё не зажгла
+  const warming = allNodes().find((n) => t >= new Date(n.opensAt) && !isOpen(n, t));
+  if (fresh) {
     $('cd-label').textContent = fresh.kind === 'star' ? 'Звезда уже горит!' : 'Новый шар уже горит!';
     $('cd-value').textContent = 'Тапни по нему ✨';
+  } else if (warming) {
+    $('cd-label').textContent = warming.kind === 'star' ? 'Звезда вот-вот загорится' : 'Новый шар вот-вот загорится';
+    $('cd-value').textContent = 'Кошка уже несёт спички 🐾';
+    if (!app.warmTimer) app.warmTimer = setTimeout(() => { app.warmTimer = null; refresh(); }, 30 * 1000);
   } else if (future) {
     $('cd-label').textContent = 'До следующего шара';
     $('cd-value').textContent = formatCountdown(future - t);
@@ -238,11 +238,11 @@ function onNode(id) {
   const node = allNodes().find((n) => n.id === id);
   if (!node) return;
   const t = now();
-  if (t >= new Date(node.opensAt) && !isReady(node)) {
-    toast('Шар загорается — ещё минутку ✨');
+  if (!isOpen(node, t) && t >= new Date(node.opensAt)) {
+    toast('Кошка зажжёт этот шар совсем скоро 🐾');
     return;
   }
-  if (t < new Date(node.opensAt)) {
+  if (!isOpen(node, t)) {
     vibrate(15);
     knocks[id] = (knocks[id] || 0) + 1;
     const c = app.content;
@@ -252,7 +252,7 @@ function onNode(id) {
       return;
     }
     const w2 = allNodes().find((n) => n.id === 'w2');
-    const bearHere = w2 && t >= new Date(w2.opensAt);
+    const bearHere = w2 && isOpen(w2, t);
     // Пока мишка не подарен (до шара 2) — никаких фраз о нём
     const pool = (c.lockedPhrases || []).filter((p) => bearHere || !/мишк/i.test(p));
     const list = pool.length ? pool : ['Не подглядывай 👀'];
@@ -268,7 +268,7 @@ function onNode(id) {
 function onMascot() {
   const c = app.content;
   const w2 = allNodes().find((n) => n.id === 'w2');
-  if (!w2 || now() < new Date(w2.opensAt)) return toast(c.mascotSleeping || 'Здесь кто-то скоро поселится ❄');
+  if (!w2 || !isOpen(w2, now())) return toast(c.mascotSleeping || 'Здесь кто-то скоро поселится ❄');
   const list = c.mascotPhrases || [];
   const name = app.state.mascot?.name || c.mascotName || 'Мишка';
   toast(`🧸 ${name}: ${list[Math.floor(Math.random() * list.length)] || '…'}`);
@@ -324,7 +324,7 @@ function route() {
 
   if (kind === 'w') {
     const node = allNodes().find((n) => n.id === id);
-    if (!node || ctx.now < new Date(node.opensAt) || !isReady(node)) { location.hash = '#/'; return; }
+    if (!node || !isOpen(node, ctx.now)) { location.hash = '#/'; return; }
     const openLetter = () => {
       if (!seen.has(node.id)) {
         seen.add(node.id);

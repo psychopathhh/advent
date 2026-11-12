@@ -4,7 +4,7 @@ import { makeRepo } from './github.js';
 import { processPhoto } from './imageproc.js';
 import { h, toast } from './ui/dom.js';
 import { formatDate } from './time.js';
-import { fetchReleased, unsealContent } from './sealed.js';
+import { fetchReleased, unsealContent, nodesOf } from './sealed.js';
 
 const CFG_KEY = 'advent.adminCfg';
 const KEY_STORE = 'advent.key';
@@ -176,6 +176,7 @@ function renderMain() {
   root.replaceChildren(
     header(),
     h('p', { class: 'a-hint a-repo' }, A.cfg.owner === 'local' ? 'Локальный режим (изменения пишутся в папку проекта)' : `Репозиторий: ${A.cfg.owner}/${A.cfg.repo}`),
+    openCard(),
     uploadCard(),
     teasersCard(),
     codesCard(),
@@ -187,6 +188,30 @@ function renderMain() {
     nudgeCard(),
     previewCard(),
   );
+}
+
+// 0. Зажечь шар
+function openCard() {
+  const list = nodesOf(A.content).filter((n) => n.sealed);
+  const name = (n) => (n.id === 'ny' ? 'Новогоднее письмо' : weekLabel(n));
+  const waiting = new Set(store.get('advent.opening', []));
+  return h('section', { class: 'a-card' },
+    h('h2', {}, '🔥 Зажечь шар'),
+    h('p', { class: 'a-hint' }, 'Шар загорается у него только после твоей кнопки — через 1–2 минуты после нажатия. Дата на ёлке — просто обратный отсчёт.'),
+    h('ul', { class: 'a-list' }, list.map((n) => h('li', {},
+      h('div', {}, h('b', {}, name(n)),
+        h('div', { class: 'a-hint' }, n.ready ? '✅ горит' : waiting.has(n.id) ? '⏳ зажигается… обнови страницу через минуту' : 'не зажжён')),
+      n.ready ? null : h('button', { class: 'btn btn-gold btn-sm', onclick: async (e) => {
+        if (!confirm(`Зажечь «${name(n)}» прямо сейчас? Отменить будет нельзя.`)) return;
+        const b = e.currentTarget; b.disabled = true;
+        try {
+          await A.repo.dispatch('release.yml', { open: n.id });
+          store.set('advent.opening', [...waiting, n.id]);
+          toast('Зажигаю! Шар загорится у него через 1–2 минуты 🔥', 5000);
+          setTimeout(async () => { A.content = await openContent(A.mainRaw, await C.decryptJSON(A.mainKey, await fetchBin('./data/content.enc'))); renderMain(); }, 90 * 1000);
+          renderMain();
+        } catch (err) { toast('⚠️ ' + err.message, 9000); b.disabled = false; }
+      } }, 'Зажечь')))));
 }
 
 // 1. Подарок под ёлку
@@ -506,6 +531,10 @@ function label(text, input) {
 function makeLocalRepo() {
   return {
     async check() { return true; },
+    async dispatch(_wf, inputs) {
+      const r = await fetch('./__dev/open', { method: 'POST', body: JSON.stringify(inputs) });
+      if (!r.ok) throw new Error('Локальный сервер: ' + (await r.text()));
+    },
     async readFile(path) {
       const r = await fetch('./' + path + '?ts=' + Date.now(), { cache: 'no-store' });
       return r.ok ? new Uint8Array(await r.arrayBuffer()) : null;

@@ -45,6 +45,16 @@ export function makeRepo({ owner, repo, branch = 'main', token }) {
       return !!j.permissions?.push;
     },
 
+    /** Запускает задачу GitHub Actions (нужно право токена Actions: Read and write). */
+    async dispatch(workflow, inputs = {}) {
+      try {
+        await call(`/actions/workflows/${workflow}/dispatches`, { method: 'POST', body: JSON.stringify({ ref: branch, inputs }) });
+      } catch (e) {
+        if (e.status === 403 || e.status === 404) throw new GitHubError('У токена нет права запускать задачи. На GitHub: Settings → Developer settings → Fine-grained tokens → твой токен → Edit → Repository permissions → Actions: Read and write → Update.', e.status);
+        throw e;
+      }
+    },
+
     /** Читает файл из ветки (свежий, мимо кэша Pages). null, если файла нет. */
     async readFile(path) {
       // Contents API (и raw, и base64) портит бинарные файлы, похожие на текст.

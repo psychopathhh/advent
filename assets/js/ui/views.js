@@ -2,6 +2,7 @@
 import { h, toast } from './dom.js';
 import { formatDate } from '../time.js';
 import { mountScratch } from './scratch.js';
+import { isOpen } from '../sealed.js';
 import { loadMedia, loadFullMedia, unlockedCodes, unlockedBonuses, store, teaserReady } from '../data.js';
 
 export function fill(text, ctx) {
@@ -64,7 +65,7 @@ export function letterView(node, ctx) {
   if ((ctx.state.codes || []).includes(node.id)) letter.append(section('🔑 Кодовое слово', codeForm(node, ctx)));
 
   const ny = ctx.content.newYearLetter;
-  if (node.kind === 'star' && ny && ctx.now >= new Date(ny.opensAt) && (!ny.sealed || ny.ready) && ny.text) {
+  if (node.kind === 'star' && ny && isOpen(ny, ctx.now) && ny.text) {
     letter.append(section(ny.title || 'С Новым годом', h('div', { class: 'hand' }, ny.text.map((p) => h('p', {}, f(p))))));
   }
 
@@ -247,7 +248,7 @@ export function tournamentView(ctx) {
   const results = ctx.state.results || [];
   const count = (w) => results.filter((r) => r.winner === w).length;
   const him = count('him'), her = count('her'), mammoth = count('mammoth');
-  const left = nodes.filter((n) => ctx.now < new Date(n.opensAt)).length;
+  const left = nodes.filter((n) => !isOpen(n, ctx.now)).length;
   const champ = ctx.state.champion;
 
   return h('div', {}, closeBtn(ctx.onClose),
@@ -261,7 +262,7 @@ export function tournamentView(ctx) {
       mammoth ? h('p', { class: 'score-extra' }, `🦣 Мамонт: ${mammoth}`) : null,
       h('p', { class: 'score-extra' }, champ ? 'Сезон завершён ✨' : left ? `До конца сезона: ${left} ${plural(left, 'вечер', 'вечера', 'вечеров')}` : 'Решающий вечер позади — ждём объявления чемпиона'),
       h('ul', { class: 'timeline' }, nodes.flatMap((n) => {
-        const future = ctx.now < new Date(n.opensAt);
+        const future = !isOpen(n, ctx.now);
         // игры шара не раскрываем, пока он не открылся
         const games = n.games?.length && !future ? n.games : [null];
         return games.map((g, i) => {

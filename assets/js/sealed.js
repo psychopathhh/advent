@@ -41,3 +41,6 @@ export async function unsealContent(c, mainRaw, released, fetchBin, cache = new 
 
 /** Шар можно показывать: время пришло и (если запечатан) ключ выложен. */
 export const isReady = (n) => !n.sealed || n.ready === true;
+
+/** Шар открыт: запечатанный — когда кошка его открыла (ключ выложен), обычный — по дате. */
+export const isOpen = (n, t) => (n.sealed ? n.ready === true : t >= new Date(n.opensAt));

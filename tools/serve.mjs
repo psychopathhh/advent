@@ -2,7 +2,7 @@
 import { createServer } from 'node:http';
 import { readFile, stat, writeFile, mkdir, rm } from 'node:fs/promises';
 import { extname, join, normalize, dirname } from 'node:path';
-import { ROOT } from './lib.mjs';
+import { ROOT, crypto as C } from './lib.mjs';
 
 const PORT = Number(process.env.PORT) || 8080;
 const TYPES = {
@@ -30,6 +30,22 @@ createServer(async (req, res) => {
     } catch (e) {
       res.writeHead(400); return res.end(String(e.message));
     }
+  }
+  // Только для локальной проверки: «зажечь шар» = выложить его ключ в data/keys.json
+  if (req.method === 'POST' && req.url === '/__dev/open') {
+    try {
+      let raw = '';
+      for await (const chunk of req) raw += chunk;
+      const { open } = JSON.parse(raw);
+      const priv = await C.importSealPrivate(JSON.parse(await readFile(join(ROOT, 'content', 'release-private.json'), 'utf8')));
+      const seals = JSON.parse(await readFile(join(ROOT, 'data', 'seals.json'), 'utf8'));
+      const kf = join(ROOT, 'data', 'keys.json');
+      let keys = {};
+      try { keys = JSON.parse(await readFile(kf, 'utf8')); } catch { /* */ }
+      keys[open] = C.b64(await C.unseal(priv, seals[open].sealed));
+      await writeFile(kf, JSON.stringify(keys, null, 2) + '\n');
+      res.writeHead(200); return res.end('ok');
+    } catch (e) { res.writeHead(400); return res.end(String(e.message)); }
   }
   try {
     let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
