@@ -144,12 +144,24 @@ function nodeEl(n) {
   } else {
     art.append(s('rect', { x: -5, y: -p.r - 5, width: 10, height: 7, rx: 2, fill: '#E8C27A' }));
     art.append(s('circle', { class: 'ball-body', r: p.r, fill: `url(#${gradId})` }));
+    const pat = n.pattern && PATTERNS[n.pattern];
+    if (pat) {
+      const clip = `c-ball-${n.id}`;
+      g.querySelector('defs').append(s('clipPath', { id: clip }, s('circle', { r: p.r })));
+      const layer = s('g', { 'clip-path': `url(#${clip})` });
+      pat(layer, p.r, n);
+      art.append(layer);
+    }
     art.append(s('ellipse', { cx: -p.r * 0.35, cy: -p.r * 0.4, rx: p.r * 0.28, ry: p.r * 0.16, fill: '#fff', opacity: '.55', transform: 'rotate(-30)' }));
     if (n.status === 'locked') {
       art.append(s('circle', { r: p.r, fill: '#BFD7EA', opacity: '.5' }));
       art.append(s('path', { d: snowflakePath(p.r * 0.5), stroke: '#fff', 'stroke-width': 1.6, 'stroke-linecap': 'round', fill: 'none', opacity: '.85' }));
     } else {
-      art.append(s('text', { y: p.r * 0.34, 'text-anchor': 'middle', 'font-family': 'Cormorant Garamond, serif', 'font-weight': 700, 'font-size': p.r * 0.95, fill: '#fff', opacity: '.9' }, String(n.slot)));
+      if (pat && n.pattern === 'trio') {
+        art.append(s('circle', { r: p.r * 0.1, fill: '#E8C27A' })); // центр, где сходятся сектора
+      } else {
+        art.append(s('text', { y: p.r * 0.34, 'text-anchor': 'middle', 'font-family': 'Cormorant Garamond, serif', 'font-weight': 700, 'font-size': p.r * 0.95, fill: '#fff', opacity: '.9' }, String(n.slot)));
+      }
     }
   }
   sw.append(art);
@@ -158,6 +170,47 @@ function nodeEl(n) {
   g.append(s('text', { class: 'node-date', y: p.r + (n.kind === 'bell' ? 26 : 16) }, formatDate(n.opensAt)));
   return g;
 }
+
+// Узоры шаров (рисуются внутри круга радиуса r, обрезаются по нему)
+const PATTERNS = {
+  // Шар 3 «Нуар»: кинохлопушка — чёрный шар, сверху белая планка с косыми полосами
+  clapper(g, r) {
+    const top = -r * 0.3;
+    g.append(s('rect', { x: -r, y: -r, width: 2 * r, height: 2 * r, fill: '#161616' }));
+    g.append(s('rect', { x: -r, y: -r, width: 2 * r, height: r + top, fill: '#f2f2f2' }));
+    const w = r * 0.38;
+    for (let x = -r - w; x < r + w; x += w * 2) {
+      g.append(s('path', { d: `M${x} ${-r} L${x + w} ${-r} L${x + w * 2} ${top} L${x + w} ${top} Z`, fill: '#161616' }));
+    }
+    g.append(s('rect', { x: -r, y: top, width: 2 * r, height: r * 0.1, fill: '#8a8a8a' }));
+  },
+  // Шар 5: три сектора — «Дурак» (сукно ♠), «Морской бой», «Кто я?». Сектор светлеет, когда по игре есть результат
+  trio(g, r, n) {
+    const a = (deg) => [r * 1.2 * Math.cos((deg - 90) * Math.PI / 180), r * 1.2 * Math.sin((deg - 90) * Math.PI / 180)];
+    const sector = (from, to, fill) => {
+      const [x1, y1] = a(from), [x2, y2] = a(to);
+      return s('path', { d: `M0 0 L${x1} ${y1} A${r * 1.2} ${r * 1.2} 0 0 1 ${x2} ${y2} Z`, fill });
+    };
+    const played = new Set(n.played || []);
+    const parts = [
+      { id: 'cards', from: 0, to: 120, fill: '#1f5e3b', icon: () => s('text', { x: r * 0.45, y: -r * 0.02, 'text-anchor': 'middle', 'font-size': r * 0.75, fill: '#F5F1EA' }, '♠') },
+      { id: 'sea', from: 120, to: 240, fill: '#1d3b6e', icon: () => s('path', { d: `M${-r * 0.2} ${r * 0.32} l${r * 0.4} ${r * 0.4} M${r * 0.2} ${r * 0.32} l${-r * 0.4} ${r * 0.4}`, stroke: '#E24B4A', 'stroke-width': r * 0.14, 'stroke-linecap': 'round' }) },
+      { id: 'who', from: 240, to: 360, fill: '#F2DCC9', icon: () => s('text', { x: -r * 0.45, y: r * 0.06, 'text-anchor': 'middle', 'font-size': r * 0.85, 'font-family': 'Cormorant Garamond, serif', 'font-weight': 700, fill: '#5a2d0c' }, '?') },
+    ];
+    for (const p of parts) {
+      g.append(sector(p.from, p.to, p.fill), p.icon());
+      if (!played.has(p.id)) {
+        const dim = sector(p.from, p.to, '#0b1220');
+        dim.setAttribute('opacity', '.3');
+        g.append(dim);
+      }
+    }
+    for (const deg of [0, 120, 240]) {
+      const [x, y] = a(deg);
+      g.append(s('line', { x1: 0, y1: 0, x2: x, y2: y, stroke: '#E8C27A', 'stroke-width': 0.9 }));
+    }
+  },
+};
 
 function giftEl(gift, spot) {
   const { x, y, w, h } = spot;

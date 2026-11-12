@@ -136,7 +136,8 @@ function tick() {
   const nodes = allNodes().map((n) => {
     const status = statusOf(n, t);
     const label = `${n.kind === 'star' ? 'Звезда' : n.kind === 'bell' ? 'Колокольчик' : 'Шар ' + n.slot}, ${status === 'locked' ? 'закрыт' : status === 'new' ? 'новый, можно открыть' : 'открыт'}`;
-    return { ...n, status, label };
+    const played = (app.state.results || []).filter((r) => r.weekId === n.id && r.game).map((r) => r.game);
+    return { ...n, status, label, played };
   });
   const gifts = visibleTeasers(t).map((x) => {
     const node = allNodes().find((n) => n.id === x.weekId);
@@ -146,7 +147,7 @@ function tick() {
   const mascot = { arrived: !!(w2 && isOpen(w2, t)), name: app.state.mascot?.name || null };
 
   // Перерисовываем ёлку, только если что-то поменялось
-  const sig = JSON.stringify([nodes.map((n) => n.status), gifts.map((g) => g.id + g.isNew), mascot.arrived]);
+  const sig = JSON.stringify([nodes.map((n) => n.status + n.played.join()), gifts.map((g) => g.id + g.isNew), mascot.arrived]);
   if (sig !== app.sig) {
     app.sig = sig;
     renderTree($('tree'), { nodes, gifts, mascot });

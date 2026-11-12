@@ -24,7 +24,7 @@ const { key, raw, kdf } = await mainKey();
 await readState(key); // заодно проверяем, что фраза та же, что у state.enc
 
 // Что видно до открытия шара
-const PUBLIC = new Set(['id', 'kind', 'slot', 'opensAt', 'title', 'accent', 'dark', 'lookId', 'teaserMode', 'teaserCaption', 'lockedHint', 'bonus']);
+const PUBLIC = new Set(['id', 'kind', 'slot', 'opensAt', 'title', 'accent', 'dark', 'lookId', 'teaserMode', 'teaserCaption', 'lockedHint', 'bonus', 'pattern']);
 
 const pub = await C.importSealPublic(JSON.parse(await readFile(pubFile, 'utf8')));
 // ключи выпуска: только у тебя; свой файл на каждый набор данных (по соли)
