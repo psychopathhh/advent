@@ -152,7 +152,9 @@ function nodeEl(n) {
       pat(layer, p.r, n);
       art.append(layer);
     }
+    const topDeco = n.pattern && PATTERN_TOP[n.pattern];
     art.append(s('ellipse', { cx: -p.r * 0.35, cy: -p.r * 0.4, rx: p.r * 0.28, ry: p.r * 0.16, fill: '#fff', opacity: '.55', transform: 'rotate(-30)' }));
+    if (topDeco) topDeco(art, p.r);
     if (n.status === 'locked') {
       art.append(s('circle', { r: p.r, fill: '#BFD7EA', opacity: '.5' }));
       art.append(s('path', { d: snowflakePath(p.r * 0.5), stroke: '#fff', 'stroke-width': 1.6, 'stroke-linecap': 'round', fill: 'none', opacity: '.85' }));
@@ -173,6 +175,15 @@ function nodeEl(n) {
 
 // Узоры шаров (рисуются внутри круга радиуса r, обрезаются по нему)
 const PATTERNS = {
+  // Шар 2 «Зефиркааа»: розовые сердечки и ярко-бирюзовый горошек на пурпуре
+  hearts(g, r) {
+    const k = r / 46;
+    const art = s('g', { transform: `scale(${k})` });
+    const heart = 'c-3 -4 -9 -1 -6 4 l6 6 l6 -6 c3 -5 -3 -8 -6 -4z';
+    for (const [x, y] of [[-28, -22], [14, -30], [30, 0], [-12, 2], [-32, 22], [8, 26]]) art.append(s('path', { d: `M${x} ${y} ${heart}`, fill: '#F4C0D1' }));
+    for (const [x, y, rr] of [[-6, -20, 3.2], [34, -18, 2.6], [12, 10, 3.2], [-28, 0, 2.6], [26, 34, 2.6], [-14, 34, 2.4], [-38, -14, 2.2]]) art.append(s('circle', { cx: x, cy: y, r: rr, fill: '#1DE9D3' }));
+    g.append(art);
+  },
   // Шар 3 «Нуар»: кинохлопушка — чёрный шар, сверху белая планка с косыми полосами
   clapper(g, r) {
     const top = -r * 0.3;
@@ -209,6 +220,18 @@ const PATTERNS = {
       const [x, y] = a(deg);
       g.append(s('line', { x1: 0, y1: 0, x2: x, y2: y, stroke: '#E8C27A', 'stroke-width': 0.9 }));
     }
+  },
+};
+
+// Украшения поверх шара (не обрезаются по кругу)
+const PATTERN_TOP = {
+  // бант у ушка шара 2
+  hearts(g, r) {
+    const k = r / 46, y = -r - 1;
+    const bow = s('g', { transform: `translate(0 ${y}) scale(${k})`, fill: '#1DE9D3' },
+      s('path', { d: 'M0 0 L-18 -9 L-18 9Z' }), s('path', { d: 'M0 0 L18 -9 L18 9Z' }),
+      s('circle', { r: 5, fill: '#12C4B2' }));
+    g.append(bow);
   },
 };
 
