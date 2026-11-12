@@ -41,6 +41,7 @@ export function letterView(node, ctx) {
   if (paper === 'ticket') letter.append(h('div', { class: 'ticket-head' }, h('span', {}, 'Билет на финал'), h('span', {}, 'ряд 1 · место 1')));
   if (paper === 'sea') letter.append(h('div', { class: 'pine-leaves', 'aria-hidden': 'true' }), h('div', { class: 'pine-window', 'aria-hidden': 'true' }));
   if (paper === 'seal') letter.append(h('div', { class: 'wax-mark', 'aria-hidden': 'true' }, pawIcon()));
+  if (paper === 'map') letter.append(mapHead());
   letter.append(body);
   body.append(
     h('p', { class: 'kicker' }, kickerFor(node)),
@@ -83,6 +84,21 @@ export function letterView(node, ctx) {
   body.append(actions);
 
   return h('div', { 'data-scene': paper === 'sea' ? 'sea' : null }, closeBtn(ctx.onClose), letter);
+}
+
+/** Шапка письма-карты: пунктирный маршрут от «ты» к «я». */
+function mapHead() {
+  const wrap = h('div', { class: 'map-head', 'aria-hidden': 'true' });
+  wrap.innerHTML = `<svg viewBox="0 0 320 120" preserveAspectRatio="xMidYMid meet">
+    <path d="M10 92 q30 -18 52 -6 q22 12 44 -4 M150 110 q20 -30 60 -26 M230 20 q20 16 54 8" fill="none" stroke="#b9ab86" stroke-width="1.2" opacity=".7"/>
+    <path class="map-route" d="M40 96 C90 40 150 120 200 64 S270 30 282 30" fill="none" stroke="#C8102E" stroke-width="2.4" stroke-dasharray="7 6" stroke-linecap="round"/>
+    <path d="M40 90 c-4 -6 -13 -2 -9 6 l9 9 l9 -9 c4 -8 -5 -12 -9 -6z" fill="#C8102E"/>
+    <path d="M282 24 c-4 -6 -13 -2 -9 6 l9 9 l9 -9 c4 -8 -5 -12 -9 -6z" fill="#C8102E"/>
+    <text x="40" y="118" text-anchor="middle" font-size="17" fill="#5F5E5A" font-family="Marck Script, cursive">ты</text>
+    <text x="300" y="54" text-anchor="middle" font-size="17" fill="#5F5E5A" font-family="Marck Script, cursive">я</text>
+    <g transform="translate(150 22)" fill="none" stroke="#8a7b58" stroke-width="1"><circle r="12"/><path d="M0 -16 L3 0 L0 16 L-3 0Z" fill="#8a7b58"/><path d="M-16 0 L0 3 L16 0 L0 -3Z"/></g>
+  </svg>`;
+  return wrap;
 }
 
 function pawIcon() {

@@ -387,15 +387,15 @@ body[data-view="tournament"] .overlay, body[data-view="shop"] .overlay, body[dat
 @keyframes rays { from { transform: translateX(-4%); } to { transform: translateX(4%); } }
 
 /* Домик-ананас (шар 1) */
-.letter.paper-sea { margin-top: 70px; border-top: 0; padding: 46px 16px 22px; border-radius: 48% 48% 26px 26px / 90px 90px 26px 26px;
+.letter.paper-sea { margin-top: 70px; border-top: 0; padding: 76px 18px 22px; border-radius: 48% 48% 26px 26px / 90px 90px 26px 26px;
   background:
     repeating-linear-gradient(45deg, rgba(186, 117, 23, .45) 0 2px, transparent 2px 22px),
     repeating-linear-gradient(-45deg, rgba(186, 117, 23, .45) 0 2px, transparent 2px 22px),
     #F2A33A; }
-.paper-sea .letter-body { background: #FFF6E4; border-radius: 18px; padding: 22px 18px; box-shadow: inset 0 0 0 3px rgba(186, 117, 23, .35); }
+.paper-sea .letter-body { background: #FFF6E4; border-radius: 50% 50% 18px 18px / 40px 40px 18px 18px; padding: 30px 16px 20px; overflow-wrap: anywhere; box-shadow: inset 0 0 0 3px rgba(186, 117, 23, .35); }
 .pine-leaves { position: absolute; left: 50%; top: -66px; width: 130px; height: 80px; transform: translateX(-50%);
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 130 80'%3E%3Cg fill='%233B6D11'%3E%3Cpath d='M65 0 L50 70 L80 70Z'/%3E%3Cpath d='M30 12 L44 72 L64 66Z'/%3E%3Cpath d='M100 12 L86 72 L66 66Z'/%3E%3C/g%3E%3Cg fill='%23639922'%3E%3Cpath d='M8 34 L40 76 L56 70Z'/%3E%3Cpath d='M122 34 L90 76 L74 70Z'/%3E%3C/g%3E%3C/svg%3E") center bottom / contain no-repeat; }
-.pine-window { position: absolute; left: 50%; top: 8px; width: 30px; height: 30px; transform: translateX(-50%); border-radius: 50%;
+.pine-window { position: absolute; left: 50%; top: 22px; width: 30px; height: 30px; transform: translateX(-50%); border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #bfe6f2, #378ADD); box-shadow: 0 0 0 4px #8a5a14; }
 .paper-sea .section h3 { color: #854F0B; }
 
@@ -466,3 +466,18 @@ body[data-view="tournament"] .overlay, body[data-view="shop"] .overlay, body[dat
 @media (prefers-reduced-motion: reduce) {
   .sea-weed, .sea-tile span, .sea-rays, .letter.paper-mug::before { animation: none; }
 }
+
+/* Карта маршрута (колокольчик) */
+.letter.paper-map { border-top: 0; border-radius: 4px; padding-top: 12px;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 1px), rgba(120, 100, 60, .18) 50%, transparent calc(50% + 1px)),
+    linear-gradient(0deg, transparent calc(50% - 1px), rgba(120, 100, 60, .14) 50%, transparent calc(50% + 1px)),
+    repeating-linear-gradient(0deg, rgba(150, 130, 90, .16) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(90deg, rgba(150, 130, 90, .16) 0 1px, transparent 1px 34px),
+    radial-gradient(120% 90% at 50% 40%, #F1EAD6, #DCCFAE); }
+.map-head { margin: 0 -6px 8px; }
+.map-head svg { display: block; width: 100%; height: auto; max-height: 150px; }
+.map-route { animation: route 14s linear infinite; }
+@keyframes route { to { stroke-dashoffset: -260; } }
+.paper-map .section h3 { color: #6b5a33; }
+@media (prefers-reduced-motion: reduce) { .map-route { animation: none; } }
