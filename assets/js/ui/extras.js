@@ -13,11 +13,16 @@ const BOUGHT = 'advent.bought'; // { shopId: сколько раз купил н
 
 export function couponCounts(state) {
   const bought = store.get(BOUGHT, {});
-  const redeemed = {};
-  for (const c of state.coupons || []) redeemed[c.shopId] = (redeemed[c.shopId] || 0) + 1;
+  // в state: купоны, которые кошка приняла (done: false — ждут исполнения, иначе использованы)
+  const redeemed = {}, waiting = {}, used = {};
+  for (const c of state.coupons || []) {
+    redeemed[c.shopId] = (redeemed[c.shopId] || 0) + 1;
+    const bucket = c.done === false ? waiting : used;
+    bucket[c.shopId] = (bucket[c.shopId] || 0) + 1;
+  }
   const pending = {};
   for (const [id, n] of Object.entries(bought)) pending[id] = Math.max(0, n - (redeemed[id] || 0));
-  return { bought, redeemed, pending };
+  return { bought, redeemed, pending, waiting, used };
 }
 
 /** Снежинки, «замороженные» в купонах, которые ещё не погашены. */
@@ -65,7 +70,7 @@ function sendToCat(text) {
 /** ctx: { content, state, flakes (доступно), onClose, rerender } */
 export function shopView(ctx) {
   const c = ctx.content;
-  const { pending, redeemed } = couponCounts(ctx.state);
+  const { pending, redeemed, waiting, used } = couponCounts(ctx.state);
   const items = [...(c.shop || [])].sort((a, b) => a.price - b.price);
 
   const myList = items.filter((s) => pending[s.id] || redeemed[s.id]);
@@ -95,11 +100,15 @@ export function shopView(ctx) {
       h('h3', { class: 'shop-sub' }, 'Мои купоны'),
       myList.length ? h('ul', { class: 'my-coupons' }, myList.flatMap((s) => [
         ...Array.from({ length: pending[s.id] || 0 }, () => h('li', {},
-          h('span', {}, '🎟 ', s.title), h('span', { class: 'mc-state' }, 'ждёт кошку'),
+          h('span', {}, '🎟 ', s.title), h('span', { class: 'mc-state' }, 'кошка ещё не приняла'),
           h('span', { class: 'mc-actions' },
-            h('button', { class: 'btn btn-ghost btn-sm', onclick: () => sendToCat(`Напоминаю про купон «${s.title}» 🎟`) }, 'Напомнить'),
+            h('button', { class: 'btn btn-ghost btn-sm', onclick: () => sendToCat(`Купил купон «${s.title}» за ${s.price} ❄ 🎟 Жду, когда примешь!`) }, 'Напомнить'),
             h('button', { class: 'btn btn-ghost btn-sm', onclick: () => { if (confirm('Отменить покупку? Снежинки вернутся.')) { cancel(s, ctx.state); ctx.rerender(); } } }, 'Отменить')))),
-        ...Array.from({ length: redeemed[s.id] || 0 }, () => h('li', { class: 'used' },
+        ...Array.from({ length: waiting[s.id] || 0 }, () => h('li', {},
+          h('span', {}, '🎟 ', s.title), h('span', { class: 'mc-state' }, 'кошка приняла'),
+          h('span', { class: 'mc-actions' },
+            h('button', { class: 'btn btn-ghost btn-sm', onclick: () => sendToCat(`Напоминаю про купон «${s.title}» 🎟`) }, 'Напомнить')))),
+        ...Array.from({ length: used[s.id] || 0 }, () => h('li', { class: 'used' },
           h('span', {}, '✓ ', s.title), h('span', { class: 'mc-state' }, 'использован'))),
       ])) : h('p', { class: 'muted-light' }, 'Пока пусто. Выигрывай — и лавка подождёт.')));
 }

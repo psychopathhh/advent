@@ -114,6 +114,19 @@ export async function unlockCode(weekId, code) {
   return bonus;
 }
 
+/**
+ * Слова, которые кошка сохранила в общем состоянии (state.codesOpen): если на этом
+ * устройстве их нет (новый телефон, браузер всё стёр), молча открываем заново.
+ */
+export async function restoreSharedCodes(state) {
+  const shared = state?.codesOpen || {};
+  const local = unlockedCodes();
+  for (const [weekId, code] of Object.entries(shared)) {
+    if (local[weekId] || !(state.codes || []).includes(weekId)) continue;
+    try { await unlockCode(weekId, code); } catch { /* слово сменили — пусть введёт сам */ }
+  }
+}
+
 /** Чёткое фото «силуэта» по сохранённому коду недели. */
 export async function loadFullMedia(teaser) {
   const code = unlockedCodes()[teaser.weekId];

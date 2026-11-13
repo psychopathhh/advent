@@ -1,6 +1,6 @@
 // Точка входа сайта «Под ёлочкой».
 import { syncTime, startAutoSync, now, isPreview, clockSkewed, formatCountdown } from './time.js';
-import { restoreSession, login, logout, loadContent, loadState, store, unlockCode, unlockedCodes, unlockedBonuses, teaserReady } from './data.js';
+import { restoreSession, login, logout, loadContent, loadState, restoreSharedCodes, store, unlockCode, unlockedCodes, unlockedBonuses, teaserReady } from './data.js';
 import { isReady, isOpen } from './sealed.js';
 import { startSnow } from './ui/snow.js';
 import { renderTree } from './ui/tree.js';
@@ -85,7 +85,7 @@ function iosSafariTab() {
 // ───────── Ёлка ─────────
 async function enter(content) {
   app.content = content;
-  app.state = await loadState();
+  app.state = await loadSharedState();
   // просим браузер не чистить память сайта (Safari иначе может стереть её после недели без визитов)
   try { navigator.storage?.persist?.().catch(() => {}); } catch { /* */ }
   $('screen-login').hidden = true;
@@ -119,10 +119,17 @@ async function enter(content) {
   route();
 }
 
+/** Состояние с GitHub + кодовые слова, которые кошка сохранила для всех устройств. */
+async function loadSharedState() {
+  const st = await loadState();
+  await restoreSharedCodes(st);
+  return st;
+}
+
 async function refresh() {
   try {
     app.content = await loadContent();
-    app.state = await loadState();
+    app.state = await loadSharedState();
     app.sig = '';
     tick();
     revealMissions(allNodes(), app.content);

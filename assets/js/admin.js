@@ -478,10 +478,10 @@ function codesCard() {
   const ws = weeks().filter((w) => w.bonus);
   return h('section', { class: 'a-card' },
     h('h2', {}, '🔑 Кодовые слова'),
-    h('p', { class: 'a-hint' }, 'Если он выиграл, шепни ему слово. Он введёт его в письме шара и получит бонус (+снежинки), а фото-«силуэт» станет чётким. Задать можно один раз.'),
+    h('p', { class: 'a-hint' }, 'Если он выиграл, шепни ему слово. Он введёт его в письме шара и получит бонус (+снежинки), а фото-«силуэт» станет чётким. Задать можно один раз. Когда он ввёл слово, нажми «Сохранить навсегда» — тогда бонус и фото не пропадут, даже если он сменит телефон или браузер.'),
     h('ul', { class: 'a-list' }, ws.map((w) => {
       const has = A.state.codes.includes(w.id);
-      if (has) return h('li', {}, h('div', {}, h('b', {}, weekLabel(w)), h('div', { class: 'a-hint' }, '✅ задано')));
+      if (has) return codeSavedRow(w);
       const c1 = h('input', { type: 'text', placeholder: 'слово', autocomplete: 'off', autocapitalize: 'off' });
       const c2 = h('input', { type: 'text', placeholder: 'ещё раз', autocomplete: 'off', autocapitalize: 'off' });
       const go = h('button', { class: 'btn btn-ghost btn-sm', onclick: async () => {
@@ -497,6 +497,28 @@ function codesCard() {
       } }, 'Задать');
       return h('li', { class: 'a-col' }, h('b', {}, weekLabel(w)), h('div', { class: 'a-row' }, c1, c2, go));
     })));
+}
+
+/** Слово задано: можно сохранить его в общем состоянии, чтобы у него оно открывалось на любом устройстве. */
+function codeSavedRow(w) {
+  const saved = (A.state.codesOpen || {})[w.id];
+  if (saved) {
+    return h('li', {}, h('div', {}, h('b', {}, weekLabel(w)), h('div', { class: 'a-hint' }, '✅ задано · 💾 сохранено навсегда')),
+      h('button', { class: 'btn btn-ghost btn-sm', onclick: () => {
+        if (!confirm('Убрать слово из общего хранилища? У него оно останется только на том телефоне, где он его ввёл.')) return;
+        mutate(`Кодовое слово не хранить: ${w.id}`, (st) => { if (st.codesOpen) delete st.codesOpen[w.id]; }, 'Убрано');
+      } }, 'Убрать'));
+  }
+  const c1 = h('input', { type: 'text', placeholder: 'то же слово', autocomplete: 'off', autocapitalize: 'off' });
+  const go = h('button', { class: 'btn btn-ghost btn-sm', onclick: async () => {
+    const code = c1.value.trim();
+    if (!code) return toast('Введи слово');
+    const prep = await prepareCode(w, code); // проверит, что слово то самое
+    if (!prep) return;
+    if (!confirm('Он уже ввёл слово? Если нет — у него всё откроется само, без ввода.')) return;
+    mutate(`Кодовое слово сохранено: ${w.id}`, (st) => { st.codesOpen = { ...(st.codesOpen || {}), [w.id]: code }; }, 'Сохранено навсегда 💾');
+  } }, 'Сохранить навсегда');
+  return h('li', { class: 'a-col' }, h('div', {}, h('b', {}, weekLabel(w)), h('div', { class: 'a-hint' }, '✅ задано')), h('div', { class: 'a-row' }, c1, go));
 }
 
 // 4. Результаты
@@ -566,28 +588,34 @@ function couponsCard() {
   const used = [...A.state.coupons].reverse();
   return h('section', { class: 'a-card' },
     h('h2', {}, '🎟 Купоны из Лавки'),
-    h('p', { class: 'a-hint' }, 'Когда он купит купон, тебе придёт сообщение в Telegram. Исполни его и нажми «Погасить» — снежинки спишутся.'),
+    h('p', { class: 'a-hint' }, 'Когда он купит купон, он пришлёт тебе сообщение в Telegram. Пока ты не приняла купон, у него есть кнопка «Напомнить» — жать её можно сколько угодно. Нажми «Принять» — снежинки спишутся, а купон сохранится у него на любом устройстве. Исполнила — нажми «Исполнено».'),
     h('ul', { class: 'a-list' }, shop.map((c) => h('li', {},
       h('div', {}, h('b', {}, c.title), h('div', { class: 'a-hint' }, `${c.price} ❄`)),
       h('button', { class: 'btn btn-ghost btn-sm', onclick: () => {
-        if (!confirm(`Погасить «${c.title}» (−${c.price} ❄)?`)) return;
+        if (!confirm(`Принять купон «${c.title}» (−${c.price} ❄)?`)) return;
         const id = C.randomId(4);
         mutate(`Купон: ${c.id}`, (st) => {
-          st.coupons.push({ id, shopId: c.id, at: new Date().toISOString() });
+          st.coupons.push({ id, shopId: c.id, at: new Date().toISOString(), done: false });
           st.ledger.push({ id: C.randomId(4), delta: -c.price, reason: `Купон: ${c.title}`, at: new Date().toISOString(), ref: 'coupon:' + id });
-        }, 'Купон погашен 🎟');
-      } }, 'Погасить')))),
-    used.length ? h('div', { class: 'a-stack' }, h('b', {}, 'Погашены'),
+        }, 'Купон принят 🎟');
+      } }, 'Принять')))),
+    used.length ? h('div', { class: 'a-stack' }, h('b', {}, 'Принятые'),
       h('ul', { class: 'a-list' }, used.map((u) => {
         const c = shop.find((x) => x.id === u.shopId);
-        return h('li', {}, h('div', {}, '✓ ', c ? c.title : u.shopId, h('div', { class: 'a-hint' }, new Date(u.at).toLocaleDateString('ru-RU'))),
+        const waits = u.done === false;
+        return h('li', {}, h('div', {}, waits ? '⏳ ' : '✓ ', c ? c.title : u.shopId,
+          h('div', { class: 'a-hint' }, `${new Date(u.at).toLocaleDateString('ru-RU')} · ${waits ? 'ждёт исполнения' : 'исполнен'}`)),
+          h('div', { class: 'a-row' },
+          waits ? h('button', { class: 'btn btn-gold btn-sm', onclick: () => {
+            mutate('Купон исполнен', (st) => { const x = st.coupons.find((k) => k.id === u.id); if (x) x.done = true; }, 'Отмечено ✓');
+          } }, 'Исполнено') : null,
           h('button', { class: 'btn btn-ghost btn-sm', onclick: () => {
-            if (!confirm('Отменить погашение? Снежинки вернутся.')) return;
+            if (!confirm('Отменить купон? Снежинки вернутся.')) return;
             mutate('Отмена купона', (st) => {
               st.coupons = st.coupons.filter((x) => x.id !== u.id);
               st.ledger = st.ledger.filter((x) => x.ref !== 'coupon:' + u.id);
-            }, 'Погашение отменено');
-          } }, 'Отменить'));
+            }, 'Купон отменён');
+          } }, 'Отменить')));
       }))) : null);
 }
 
