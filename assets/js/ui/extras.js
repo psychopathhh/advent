@@ -2,7 +2,7 @@
 import { h, toast } from './dom.js';
 import { formatDate } from '../time.js';
 import { drawOriented, orientedSize } from './scratch.js';
-import { loadMedia, loadFullMedia, unlockedCodes, unlockedBonuses, store, teaserReady } from '../data.js';
+import { loadMedia, loadFullMedia, unlockedCodes, unlockedBonuses, store, teaserReady, releasedAt } from '../data.js';
 import { fill } from './views.js';
 
 const closeBtn = (onClose) => h('button', { class: 'close-btn', 'aria-label': 'Закрыть', onclick: onClose }, '×');
@@ -190,7 +190,8 @@ export function computeAchievements(ctx) {
   const looks = c.looks || [];
   const early = Object.entries(openedAt).some(([id, at]) => {
     const n = nodes.find((x) => x.id === id);
-    return n && new Date(at) - new Date(n.opensAt) < 15 * 60 * 1000;
+    // от момента, когда кошка зажгла шар; для старых записей без времени — от даты на ёлке
+    return n && new Date(at) - new Date(releasedAt(id) || n.opensAt) < 15 * 60 * 1000;
   });
   const bonuses = unlockedBonuses();
   const fromCodes = new Set(Object.values(bonuses).map((b) => b.achievement).filter(Boolean));

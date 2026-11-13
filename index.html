@@ -7,13 +7,16 @@
   <meta name="referrer" content="no-referrer">
   <meta name="theme-color" content="#0E1A2B">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Под ёлочкой">
   <meta property="og:title" content="🎄">
   <meta property="og:description" content="Тсс…">
   <title>🎄</title>
+  <!-- PNG — для Safari на iPhone и Mac (SVG-иконки он понимает не везде) -->
+  <link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
@@ -35,6 +38,8 @@
       <button class="btn btn-gold" type="submit" id="login-btn">Зажечь ёлку</button>
       <p id="login-msg" class="login-msg" role="status" aria-live="polite"></p>
     </form>
+    <!-- Только в Safari на iPhone/iPad: у иконки на экране «Домой» своя память, и Safari её не стирает -->
+    <p id="login-ios" class="login-ios" hidden>На айфоне сначала добавь ёлку на экран «Домой»: <b>Поделиться</b> → <b>На экран «Домой»</b> — и заходи уже с иконки. Так ёлка ничего не забудет.</p>
   </main>
 
   <!-- Ёлка -->

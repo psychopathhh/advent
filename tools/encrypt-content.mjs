@@ -62,6 +62,6 @@ await writeBin(p('data', 'hint.json'), new TextEncoder().encode(JSON.stringify({
 
 const text = JSON.stringify(content);
 const nameSet = content.name && !/^\{.*\}$/.test(content.name);
-const left = [...new Set(text.match(/\{[А-ЯЁA-Z_]{3,}\}/g) || [])].filter((x) => !(nameSet && x === '{ИМЯ}'));
+const left = [...new Set(text.match(/\{[А-ЯЁA-Z][А-ЯЁA-Z_0-9]{2,}\}|\{вариант\}/g) || [])].filter((x) => !(nameSet && x === '{ИМЯ}'));
 console.log(`✔ data/content.enc и ${nodes.length} запечатанных шаров обновлены.`);
 if (left.length) console.log('ℹ Незаполненные плейсхолдеры: ' + left.join(', '));

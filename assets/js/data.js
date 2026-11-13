@@ -13,6 +13,9 @@ let released = {};
 /** Подарок можно показывать: не запечатан или ключ уже выложен. */
 export const teaserReady = (t) => !t.sealed || !!released[t.id];
 
+/** Когда шар зажгли (ISO-строка) или null, если время не записано. */
+export const releasedAt = (id) => released._at?.[id] || null;
+
 async function openContent(content) {
   released = await fetchReleased();
   return unsealContent(content, mainRaw, released, fetchBin, nodeCache);

@@ -37,7 +37,11 @@ async function publish(items) {
   for (let attempt = 1; attempt <= 5; attempt++) {
     if (!DRY) git('pull', '--rebase', '-q');
     const keys = await readJSON('data/keys.json');
-    for (const it of items) keys[it.id] = it.r;
+    keys._at = keys._at || {}; // когда шар зажгли — от этого считается «Ранняя пташка»
+    for (const it of items) {
+      keys[it.id] = it.r;
+      keys._at[it.id] = new Date(Math.max(Date.now(), it.at)).toISOString();
+    }
     await writeFile(file('data/keys.json'), JSON.stringify(keys, null, 2) + '\n');
     if (DRY) { console.log('[dry] выложила бы:', items.map((i) => i.id).join(', ')); return; }
     git('add', 'data/keys.json');

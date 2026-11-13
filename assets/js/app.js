@@ -37,6 +37,7 @@ let fails = 0;
 function showLogin() {
   $('screen-tree').hidden = true;
   $('screen-login').hidden = false;
+  $('login-ios').hidden = !iosSafariTab();
   // Подсказка к фразе лежит открыто (data/hint.json), т.к. нужна до входа
   fetch('./data/hint.json?ts=' + Date.now(), { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null)).then((j) => { app.hint = j?.hint || null; }).catch(() => {});
@@ -72,10 +73,19 @@ function showLogin() {
   setTimeout(() => $('pass').focus(), 300);
 }
 
+/** iPhone/iPad, открыто во вкладке браузера, а не с иконки на экране «Домой». */
+function iosSafariTab() {
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  return ios && !standalone;
+}
+
 // ───────── Ёлка ─────────
 async function enter(content) {
   app.content = content;
   app.state = await loadState();
+  // просим браузер не чистить память сайта (Safari иначе может стереть её после недели без визитов)
+  try { navigator.storage?.persist?.().catch(() => {}); } catch { /* */ }
   $('screen-login').hidden = true;
   $('screen-tree').hidden = false;
   $('brand').textContent = content.siteTitle || 'Под ёлочкой';

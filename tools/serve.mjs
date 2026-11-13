@@ -43,6 +43,7 @@ createServer(async (req, res) => {
       let keys = {};
       try { keys = JSON.parse(await readFile(kf, 'utf8')); } catch { /* */ }
       keys[open] = C.b64(await C.unseal(priv, seals[open].sealed));
+      keys._at = { ...keys._at, [open]: new Date().toISOString() };
       await writeFile(kf, JSON.stringify(keys, null, 2) + '\n');
       res.writeHead(200); return res.end('ok');
     } catch (e) { res.writeHead(400); return res.end(String(e.message)); }

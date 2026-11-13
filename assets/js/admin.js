@@ -207,6 +207,7 @@ function openCard() {
           const bytes = await A.repo.readFile('data/keys.json');
           const keys = bytes ? JSON.parse(new TextDecoder().decode(bytes)) : {};
           delete keys[n.id];
+          if (keys._at) delete keys._at[n.id];
           files['data/keys.json'] = jsonBytes(keys);
         }, 'Шар погашен. У него закроется через 1–2 минуты');
         if (ok) {
@@ -215,7 +216,7 @@ function openCard() {
           renderMain();
         }
       } }, 'Погасить') : h('button', { class: 'btn btn-gold btn-sm', onclick: async (e) => {
-        if (!confirm(`Зажечь «${name(n)}» прямо сейчас? Отменить будет нельзя.`)) return;
+        if (!confirm(`Зажечь «${name(n)}» прямо сейчас? У него шар загорится через 1–2 минуты. Погасить потом можно, но если он успеет прочитать письмо — прочитанного не вернёшь.`)) return;
         const b = e.currentTarget; b.disabled = true;
         try {
           await A.repo.dispatch('release.yml', { open: n.id });
