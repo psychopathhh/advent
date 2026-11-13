@@ -51,6 +51,13 @@ export function toast(text, ms = 3200) {
   toastTimer = setTimeout(() => { el.hidden = true; }, ms);
 }
 
+/** Перезапускает CSS-анимацию — видимый отклик (на iPhone вибрации нет). */
+export function pulse(el, cls = 'flash') {
+  if (!el) return;
+  el.classList.remove(cls); void el.getBoundingClientRect(); el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), 1000);
+}
+
 export function vibrate(ms = 10) {
   try { navigator.vibrate?.(ms); } catch { /* iOS не умеет */ }
 }

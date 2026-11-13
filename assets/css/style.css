@@ -246,6 +246,12 @@ body.is-preview .topbar { padding-top: calc(30px + env(safe-area-inset-top)); }
 @keyframes rise { from { transform: translate(-50%, 12px); opacity: 0; } }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* видимый отклик вместо вибрации (на iPhone её нет) */
+.seal:active { transform: scale(.94); }
+.tree .node.knock .swing { animation: knock .5s ease-in-out; }
+@keyframes knock { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-9deg); } 45% { transform: rotate(7deg); } 70% { transform: rotate(-4deg); } 85% { transform: rotate(2deg); } }
+.flash { animation: flash .8s ease-out; }
+@keyframes flash { 0%, 100% { transform: scale(1); filter: brightness(1); } 30% { transform: scale(1.03); filter: brightness(1.35); } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

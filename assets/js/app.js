@@ -4,7 +4,7 @@ import { restoreSession, login, logout, loadContent, loadState, store, unlockCod
 import { isReady, isOpen } from './sealed.js';
 import { startSnow } from './ui/snow.js';
 import { renderTree } from './ui/tree.js';
-import { toast, vibrate } from './ui/dom.js';
+import { toast, vibrate, pulse } from './ui/dom.js';
 import { envelopeView, letterView, welcomeView, rulesView, teaserView, tournamentView, flakesView } from './ui/views.js';
 import { setScene } from './ui/scenes.js';
 import { shopView, wardrobeView, achievementsView, announceAchievements, pendingCost, settlePending } from './ui/extras.js';
@@ -16,6 +16,8 @@ const seenGifts = new Set(store.get('advent.seenGifts', []));
 const knocks = {};
 
 startSnow($('snow'));
+// без этого Safari на iPhone не показывает нажатие (:active) на шарах и кнопках
+document.addEventListener('touchstart', () => {}, { passive: true });
 boot();
 
 async function boot() {
@@ -258,6 +260,7 @@ function onNode(id) {
   }
   if (!isOpen(node, t)) {
     vibrate(15);
+    pulse($('tree').querySelector(`[data-node="${id}"]`), 'knock');
     knocks[id] = (knocks[id] || 0) + 1;
     const c = app.content;
     if (knocks[id] === 10 && node.lockedHint) {

@@ -1,5 +1,5 @@
 // Содержимое оверлеев: письмо шара, приветствие, правила, квиз, тизер.
-import { h, toast } from './dom.js';
+import { h, toast, pulse } from './dom.js';
 import { formatDate } from '../time.js';
 import { mountScratch } from './scratch.js';
 import { isOpen } from '../sealed.js';
@@ -168,6 +168,7 @@ export function codeForm(node, ctx, onDone) {
     try {
       const b = await ctx.onUnlock(node.id, input.value);
       wrap.replaceChildren(h('p', { class: 'code-ok' }, '✅ ', fill(b.text, ctx.content), b.reward ? ` · +${b.reward} ❄` : ''));
+      pulse(wrap);
       onDone?.();
     } catch (err) {
       btn.disabled = false;
@@ -295,6 +296,7 @@ export function teaserView(teaser, node, ctx) {
           store.set(revealedKey, [...revealed]);
           hint.textContent = 'Вот так-то лучше 💫';
           try { navigator.vibrate?.([10, 40, 10]); } catch { /* */ }
+          pulse(box);
         },
       });
     } catch (e) {
