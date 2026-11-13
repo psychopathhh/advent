@@ -5,7 +5,7 @@ import { isReady, isOpen } from './sealed.js';
 import { startSnow } from './ui/snow.js';
 import { renderTree } from './ui/tree.js';
 import { toast, vibrate, pulse } from './ui/dom.js';
-import { envelopeView, letterView, welcomeView, rulesView, teaserView, tournamentView, flakesView } from './ui/views.js';
+import { envelopeView, letterView, welcomeView, rulesView, teaserView, tournamentView, flakesView, revealMissions } from './ui/views.js';
 import { setScene } from './ui/scenes.js';
 import { shopView, wardrobeView, galleryView, galleryHasNew, achievementsView, announceAchievements, pendingCost, settlePending } from './ui/extras.js';
 
@@ -125,6 +125,7 @@ async function refresh() {
     app.state = await loadState();
     app.sig = '';
     tick();
+    revealMissions(allNodes(), app.content);
   } catch { /* офлайн */ }
 }
 

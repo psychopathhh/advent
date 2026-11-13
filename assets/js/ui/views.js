@@ -38,9 +38,10 @@ export function letterView(node, ctx) {
   const paper = node.paper || '';
   const letter = h('article', { class: `letter${node.dark ? ' dark' : ''}${paper ? ' paper-' + paper : ''}`, '--accent': node.accent });
   const body = h('div', { class: 'letter-body' });
-  if (paper === 'ticket') letter.append(h('div', { class: 'ticket-head' }, h('span', {}, 'Билет на финал'), h('span', {}, 'ряд 1 · место 1')));
+  if (paper === 'scoreboard') letter.append(scoreboardHead(ctx.state));
   if (paper === 'sea') letter.append(h('div', { class: 'pine-leaves', 'aria-hidden': 'true' }), h('div', { class: 'pine-window', 'aria-hidden': 'true' }));
-  if (paper === 'seal') letter.append(h('div', { class: 'wax-mark', 'aria-hidden': 'true' }, pawIcon()));
+  const wheel = paper === 'seal' ? wheelHead() : null;
+  if (wheel) letter.append(wheel);
   if (paper === 'map') letter.append(mapHead());
   letter.append(body);
   body.append(
@@ -51,7 +52,8 @@ export function letterView(node, ctx) {
   );
 
   if (node.inBox) body.append(section('Что тебя ждёт', h('p', { class: 'muted', style: { margin: 0 } }, f(node.inBox))));
-  if (node.mission?.length) body.append(section('Миссия вечера', h('ul', {}, node.mission.map((m) => h('li', {}, f(m))))));
+  if (node.missionSealed && !node.missionOpen) body.append(section('Миссия вечера', missionSpoiler(node, ctx.content)));
+  else if (node.mission?.length) body.append(section('Миссия вечера', missionList(node, ctx.content)));
 
   if (node.stakes) {
     const labels = node.stakesLabels || { him: 'Выиграешь ты', her: 'Выиграю я' };
@@ -63,10 +65,8 @@ export function letterView(node, ctx) {
     body.append(section('Ставки', box));
   }
 
-  if (node.quest) {
-    body.append(section(`Мини-квест · +${node.quest.reward} ❄`,
-      h('div', { class: 'quest' }, h('span', {}, '🎯'), h('span', {}, f(node.quest.text)))));
-  }
+  const quests = node.quests || (node.quest ? [node.quest] : []);
+  if (quests.length) body.append(section(quests.length > 1 ? 'Мини-квесты' : 'Мини-квест', questList(node, ctx.content)));
 
   if (node.quiz?.length) body.append(section('Вопросы обо мне', quizView(node, ctx)));
 
@@ -82,9 +82,61 @@ export function letterView(node, ctx) {
   if (teaser) actions.append(h('button', { class: 'btn btn-gold', onclick: () => ctx.onTeaser(teaser.id) }, '🎁 Подарок под ёлочкой'));
   actions.append(h('button', { class: 'btn btn-ghost', onclick: ctx.onClose }, 'К ёлке'));
   body.append(actions);
+  if (wheel) maskCover(letter, wheel);
   if (paper === 'typewriter') typeOut(letter, [...body.querySelectorAll(':scope > .kicker, :scope > h2, .hand p, :scope > .signature')]);
 
   return h('div', { 'data-scene': paper === 'sea' ? 'sea' : null }, closeBtn(ctx.onClose), letter);
+}
+
+/** Колесо-рулетка в шапке письма (шар 4). wheel.spin() — раскрутить, остановится на лапке. */
+function wheelHead() {
+  const C = 66, R = 58, N = 8;
+  const pt = (a, r = R) => `${(C + r * Math.sin(a)).toFixed(2)} ${(C - r * Math.cos(a)).toFixed(2)}`;
+  let art = '';
+  for (let i = 0; i < N; i++) {
+    const a0 = ((i - 0.5) * 2 * Math.PI) / N, a1 = ((i + 0.5) * 2 * Math.PI) / N, mid = (i * 2 * Math.PI) / N;
+    art += `<path d="M${C} ${C} L${pt(a0)} A${R} ${R} 0 0 1 ${pt(a1)} Z" fill="${i % 2 ? '#1E1418' : '#8B0F1E'}"/>`;
+    if (i) art += `<text x="${C}" y="${C - 36}" transform="rotate(${(mid * 180) / Math.PI} ${C} ${C})" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="700" fill="#E8C27A" opacity=".75">?</text>`;
+  }
+  for (let i = 0; i < 16; i++) art += `<circle cx="${pt((i * Math.PI) / 8, R - 4).split(' ')[0]}" cy="${pt((i * Math.PI) / 8, R - 4).split(' ')[1]}" r="1.5" fill="#E8C27A"/>`;
+  art += `<g transform="translate(${C} ${C - 36}) scale(.62)" fill="#F3D9DD"><ellipse cx="0" cy="4" rx="6" ry="5"/><circle cx="-6.5" cy="-4" r="2.6"/><circle cx="-2.2" cy="-8" r="2.6"/><circle cx="2.8" cy="-7.6" r="2.6"/><circle cx="7" cy="-3" r="2.6"/></g>`;
+  const wrap = h('div', { class: 'wheel-head', 'aria-hidden': 'true' });
+  wrap.innerHTML = `<svg viewBox="0 0 132 146"><g transform="translate(0 12)"><g class="wheel-spin"><circle cx="${C}" cy="${C}" r="${R + 3}" fill="#0B080A" stroke="#E8C27A" stroke-width="2"/>${art}<circle cx="${C}" cy="${C}" r="9" fill="#E8C27A"/><circle cx="${C}" cy="${C}" r="3.5" fill="#8B0F1E"/></g></g><polygon points="57,2 75,2 66,22" fill="#E8C27A" stroke="#0B080A" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+  const g = wrap.querySelector('.wheel-spin');
+  let turn = 90 + Math.floor(Math.random() * 5) * 45; // до раскрутки лапка не сверху
+  g.style.transform = `rotate(${turn}deg)`;
+  wrap.spin = () => { turn = Math.ceil(turn / 360) * 360 + 360 * 4; g.style.transform = `rotate(${turn}deg)`; };
+  wrap.addEventListener('click', wrap.spin);
+  return wrap;
+}
+
+/** Атласная маска поверх письма (шар 4): при каждом открытии; тап — соскальзывает, и колесо раскручивается. */
+function maskCover(letter, wheel) {
+  letter.classList.add('masked');
+  const off = () => {
+    if (cover.classList.contains('off')) return;
+    cover.classList.add('off');
+    letter.classList.remove('masked');
+    setTimeout(() => { cover.remove(); wheel.spin(); }, 700);
+  };
+  const mask = h('div', { class: 'mask-art' });
+  mask.innerHTML = '<svg viewBox="0 0 240 100"><path d="M2 48 Q30 34 46 44" stroke="#2A2226" stroke-width="8" fill="none" stroke-linecap="round"/><path d="M238 48 Q210 34 194 44" stroke="#2A2226" stroke-width="8" fill="none" stroke-linecap="round"/><path d="M200 46 q14 18 6 40" stroke="#2A2226" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M44 34 Q120 8 196 34 Q208 66 172 77 Q140 84 120 66 Q100 84 68 77 Q32 66 44 34 Z" fill="#1A1316" stroke="#8B0F1E" stroke-width="1.6"/><path d="M60 38 Q120 20 180 38" stroke="rgba(255,255,255,.22)" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M76 56 q16 9 32 0" stroke="#B3263A" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M132 56 q16 9 32 0" stroke="#B3263A" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>';
+  const cover = h('div', { class: 'mask-cover', role: 'button', tabindex: '0', 'aria-label': 'Снять маску и открыть письмо', onclick: off,
+    onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); off(); } } },
+  h('div', { class: 'mask-inner' }, mask, h('p', { class: 'mask-title' }, 'Сними маску'), h('p', { class: 'mask-hint' }, 'тапни по ней')));
+  letter.append(cover);
+}
+
+/** Табло стадиона (шар 5): текущий счёт турнира, как на светодиодном табло. */
+function scoreboardHead(state) {
+  const res = state.results || [];
+  const n = (w) => res.filter((r) => r.winner === w).length;
+  const him = n('him'), her = n('her'), mammoth = n('mammoth');
+  const num = (v) => h('span', { class: 'sb-num', 'data-ghost': '8'.repeat(String(v).length) }, String(v));
+  return h('div', { class: 'sb-board', role: 'img', 'aria-label': `Счёт турнира: ты ${him}, я ${her}` },
+    h('div', { class: 'sb-top' }, 'Финал'),
+    h('div', { class: 'sb-row' }, h('span', { class: 'sb-name' }, 'Ты'), num(him), h('span', { class: 'sb-colon' }, ':'), num(her), h('span', { class: 'sb-name' }, 'Я')),
+    h('div', { class: 'sb-sub' }, mammoth ? `счёт турнира · 🦣 ${mammoth}` : 'счёт турнира'));
 }
 
 /** Машинка: буквы пропечатываются по очереди. Место под текст занято сразу, поэтому ничего не прыгает; тап — допечатать. */
@@ -130,7 +182,7 @@ function mapHead() {
     <path d="M40 90 c-4 -6 -13 -2 -9 6 l9 9 l9 -9 c4 -8 -5 -12 -9 -6z" fill="#F2D08A"/>
     <path d="M282 24 c-4 -6 -13 -2 -9 6 l9 9 l9 -9 c4 -8 -5 -12 -9 -6z" fill="#F2D08A"/>
     <text x="40" y="118" text-anchor="middle" font-size="17" fill="#E6ECF5" font-family="Marck Script, cursive">ты</text>
-    <text x="60" y="117" text-anchor="middle" font-size="12">☀️</text>
+    <text x="60" y="117" text-anchor="middle" font-size="12">🔆</text>
     <text x="300" y="54" text-anchor="middle" font-size="17" fill="#E6ECF5" font-family="Marck Script, cursive">я</text>
     <text x="300" y="72" text-anchor="middle" font-size="12">🌙</text>
     <g transform="translate(150 22)" fill="none" stroke="#AFC4EA" stroke-width="1" opacity=".7"><circle r="12"/><path d="M0 -16 L3 0 L0 16 L-3 0Z" fill="#AFC4EA"/><path d="M-16 0 L0 3 L16 0 L0 -3Z"/></g>
@@ -145,6 +197,60 @@ function pawIcon() {
   svg.setAttribute('class', 'paw');
   svg.innerHTML = '<ellipse cx="0" cy="4" rx="6" ry="5"/><circle cx="-6.5" cy="-4" r="2.6"/><circle cx="-2.2" cy="-8" r="2.6"/><circle cx="2.8" cy="-7.6" r="2.6"/><circle cx="7" cy="-3" r="2.6"/>';
   return svg;
+}
+
+export function missionList(node, content) {
+  return h('ul', {}, node.mission.map((m) => h('li', {}, fill(m, content))));
+}
+
+/** Миссия под спойлером, как в Telegram: строчки-заглушки с мерцающими блёстками. */
+function missionSpoiler(node, content) {
+  const widths = [92, 74, 86, 63, 80, 70, 88];
+  const box = h('div', { class: 'spoiler', 'data-node': node.id, role: 'button', tabindex: 0, 'aria-label': 'Миссия пока скрыта' },
+    h('p', { class: 'sp-note' }, '🤫 Миссию кошка откроет, когда сядем играть'),
+    h('ul', { 'aria-hidden': 'true' }, Array.from({ length: node.missionCount || 3 }, (_, i) =>
+      h('li', {}, h('span', { class: 'sp-line', style: { width: widths[i % widths.length] + '%' } })))));
+  const poke = () => { pulse(box, 'sp-poke'); toast(fill('Терпение, {ИМЯ} 🐾', content)); };
+  box.addEventListener('click', poke);
+  box.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); poke(); } });
+  return box;
+}
+
+/** Мини-квесты: «+N ❄» в конце формулировки; скрытые — под спойлером. */
+function questList(node, content) {
+  const quests = node.quests || (node.quest ? [node.quest] : []);
+  const wrap = h('div', { class: 'quests', 'data-node': node.id });
+  for (const q of quests) {
+    if (q.secret) {
+      const row = h('div', { class: 'quest quest-secret', role: 'button', tabindex: 0, 'aria-label': 'Квест пока скрыт' },
+        h('span', {}, '🎯'),
+        h('span', { class: 'q-body' }, h('span', { class: 'sp-line', style: { width: '88%' } }), h('small', {}, '🤫 откроется позже')));
+      const poke = () => { pulse(row, 'sp-poke'); toast(fill('Терпение, {ИМЯ} 🐾', content)); };
+      row.addEventListener('click', poke);
+      row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); poke(); } });
+      wrap.append(row);
+    } else {
+      wrap.append(h('div', { class: 'quest' }, h('span', {}, '🎯'),
+        h('span', {}, fill(q.text, content), q.reward ? h('b', { class: 'q-reward' }, ` +${q.reward} ❄`) : null)));
+    }
+  }
+  return wrap;
+}
+
+/** Кошка открыла миссию или квесты, пока письмо открыто: блёстки рассыпаются, проступает текст. */
+export function revealMissions(nodes, content) {
+  document.querySelectorAll('.spoiler[data-node]').forEach((el) => {
+    const n = nodes.find((x) => x.id === el.dataset.node);
+    if (!n?.missionOpen || !n.mission?.length || el.classList.contains('sp-out')) return;
+    el.classList.add('sp-out');
+    setTimeout(() => { const list = missionList(n, content); list.classList.add('sp-in'); el.replaceWith(list); }, 650);
+  });
+  document.querySelectorAll('.quests[data-node]').forEach((el) => {
+    const n = nodes.find((x) => x.id === el.dataset.node);
+    if (!n?.questsOpen || !el.querySelector('.quest-secret')) return;
+    el.querySelectorAll('.quest-secret').forEach((x) => x.classList.add('sp-out'));
+    setTimeout(() => { const list = questList(n, content); list.classList.add('sp-in'); el.replaceWith(list); }, 650);
+  });
 }
 
 function section(title, body) {
@@ -193,7 +299,7 @@ function quizView(node, ctx) {
   const form = h('form', {});
   node.quiz.forEach((q, i) => {
     form.append(h('fieldset', { style: { border: 0, padding: 0, margin: '0 0 16px' } },
-      h('legend', { style: { fontWeight: 700, marginBottom: '6px' } }, `${i % 2 ? '☀️' : '🌙'} ${i + 1}. ${fill(q.q, ctx.content)}`), // луна и солнце — как браслеты
+      h('legend', { style: { fontWeight: 700, marginBottom: '6px' } }, `${i % 2 ? '🔆' : '🌙'} ${i + 1}. ${fill(q.q, ctx.content)}`), // луна и солнце — как браслеты
       q.options.map((o, j) => h('label', { style: { display: 'flex', gap: '8px', alignItems: 'center', padding: '6px 0' } },
         h('input', { type: 'radio', name: `q${i}`, value: j, required: true }), fill(o, ctx.content)))));
   });

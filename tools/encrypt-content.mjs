@@ -4,7 +4,7 @@
 // В data/content.enc остаётся только то, что нужно до открытия шара (даты, названия,
 // цвета, подсказки). Письма, миссии, ставки, квесты, игры лежат в data/nodes/<id>.enc
 // и запечатаны: ключ к ним GitHub выкладывает в data/keys.json в момент открытия.
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { p, crypto as C, mainKey, readState, writeBin, fail } from './lib.mjs';
 
@@ -36,14 +36,54 @@ const seals = existsSync(sealsFile) ? JSON.parse(await readFile(sealsFile, 'utf8
 const out = structuredClone(content);
 if (out.newYearLetter) out.newYearLetter.id = 'ny';
 const nodes = [...out.weeks, out.finale, out.newYearLetter].filter(Boolean);
+async function secretFor(id) {
+  if (!secrets[id]) {
+    const r = C.randomBytes(32);
+    secrets[id] = { r: C.b64(r), sealed: await C.seal(pub, r) };
+  }
+  return secrets[id];
+}
+// Скрытая миссия открывается только кнопкой в админке: дата «никогда», чтобы GitHub не открыл её сам
+const MANUAL_ONLY = '2099-12-31T00:00:00+03:00';
 for (const n of nodes) {
   const locked = {};
   for (const k of Object.keys(n)) if (!PUBLIC.has(k)) { locked[k] = n[k]; delete n[k]; }
-  let s = secrets[n.id];
-  if (!s) {
-    const r = C.randomBytes(32);
-    s = secrets[n.id] = { r: C.b64(r), sealed: await C.seal(pub, r) };
+  // «Миссия вечера» под отдельным замком (missionSecret: true в тексте шара)
+  const mid = n.id + 'm';
+  if (locked.missionSecret && locked.mission?.length) {
+    const ms = await secretFor(mid);
+    const missionKey = await C.sealedKey(raw, C.unb64(ms.r), mid);
+    await writeBin(p('data', 'nodes', `${mid}.enc`), await C.encryptJSON(missionKey, { mission: locked.mission }));
+    seals[mid] = { at: MANUAL_ONLY, sealed: ms.sealed };
+    n.missionSealed = true;
+    n.missionCount = locked.mission.length;
+    n.missionVer = C.randomId(4);
+    delete locked.mission;
+  } else {
+    delete seals[mid];
+    await rm(p('data', 'nodes', `${mid}.enc`), { force: true });
   }
+  delete locked.missionSecret;
+
+  // Мини-квесты: quests: [{ text, reward, secret? }]. Скрытые (secret: true) — под отдельным
+  // замком <id>q, открываются кнопкой в админке. В письме вместо них остаются заглушки.
+  if (locked.quest && !locked.quests) locked.quests = [locked.quest];
+  delete locked.quest;
+  const qid = n.id + 'q';
+  const hidden = (locked.quests || []).filter((q) => q.secret);
+  if (hidden.length) {
+    const qs = await secretFor(qid);
+    const questKey = await C.sealedKey(raw, C.unb64(qs.r), qid);
+    await writeBin(p('data', 'nodes', `${qid}.enc`), await C.encryptJSON(questKey, { quests: hidden.map(({ secret, ...q }) => q) }));
+    seals[qid] = { at: MANUAL_ONLY, sealed: qs.sealed };
+    locked.quests = locked.quests.map((q) => (q.secret ? { secret: true } : q));
+    n.questSealed = true;
+    n.questVer = C.randomId(4);
+  } else {
+    delete seals[qid];
+    await rm(p('data', 'nodes', `${qid}.enc`), { force: true });
+  }
+  const s = await secretFor(n.id);
   const nodeKey = await C.sealedKey(raw, C.unb64(s.r), n.id);
   const bytes = await C.encryptJSON(nodeKey, locked);
   await writeBin(p('data', 'nodes', `${n.id}.enc`), bytes);

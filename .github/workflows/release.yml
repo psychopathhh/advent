@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       open:
-        description: 'Что открыть сразу (id через запятую: w1, w2, p1, w3, w4, w5, w6, ny). Пусто — то, чему пришло время'
+        description: 'Что открыть сразу (id через запятую: w1, w2, p1, w3, w4, w5, w6, ny; миссии — w1m, w3m, w5m; скрытые квесты — p1q и т.п.). Пусто — то, чему пришло время'
         required: false
         default: ''
 permissions:

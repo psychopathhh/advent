@@ -170,7 +170,7 @@ function weeks({ withBell = false } = {}) {
   const all = [...A.content.weeks, A.content.finale];
   return all.filter((w) => withBell || w.kind !== 'bell');
 }
-const weekLabel = (w) => `${w.kind === 'star' ? 'Звезда' : 'Шар ' + w.slot} · ${formatDate(w.opensAt)} · ${w.title}`;
+const weekLabel = (w) => `${w.kind === 'star' ? 'Звезда' : w.kind === 'bell' ? 'Колокольчик' : 'Шар ' + w.slot} · ${formatDate(w.opensAt)} · ${w.title}`;
 
 function renderMain() {
   root.replaceChildren(
@@ -191,42 +191,75 @@ function renderMain() {
   );
 }
 
-// 0. Зажечь шар
+// 0. Зажечь шар (и открыть скрытую миссию)
 function openCard() {
   const list = nodesOf(A.content).filter((n) => n.sealed);
   const name = (n) => (n.id === 'ny' ? 'Новогоднее письмо' : weekLabel(n));
   const waiting = new Set(store.get('advent.opening', []));
-  return h('section', { class: 'a-card' },
-    h('h2', {}, '🔥 Зажечь шар'),
-    h('p', { class: 'a-hint' }, 'Шар загорается у него только после твоей кнопки — через 1–2 минуты после нажатия. Дата на ёлке — просто обратный отсчёт.'),
-    h('ul', { class: 'a-list' }, list.map((n) => h('li', {},
+  const reloadSoon = () => setTimeout(async () => {
+    A.content = await openContent(A.mainRaw, await C.decryptJSON(A.mainKey, await fetchBin('./data/content.enc')));
+    renderMain();
+  }, 90 * 1000);
+  // выложить ключ через GitHub (как «Зажечь»)
+  const turnOn = (id, ask, done) => async (e) => {
+    if (!confirm(ask)) return;
+    const b = e.currentTarget; b.disabled = true;
+    try {
+      await A.repo.dispatch('release.yml', { open: id });
+      store.set('advent.opening', [...waiting, id]);
+      toast(done, 5000);
+      reloadSoon();
+      renderMain();
+    } catch (err) { toast('⚠️ ' + err.message, 9000); b.disabled = false; }
+  };
+  // убрать ключ (как «Погасить»)
+  const turnOff = (id, ask, done, after) => async () => {
+    if (!confirm(ask)) return;
+    const ok = await mutate(`Погасить ${id}`, async (st, files) => {
+      const bytes = await A.repo.readFile('data/keys.json');
+      const keys = bytes ? JSON.parse(new TextDecoder().decode(bytes)) : {};
+      delete keys[id];
+      if (keys._at) delete keys._at[id];
+      files['data/keys.json'] = jsonBytes(keys);
+    }, done);
+    if (ok) {
+      after();
+      store.set('advent.opening', [...waiting].filter((x) => x !== id));
+      renderMain();
+    }
+  };
+
+  const rows = [];
+  for (const n of list) {
+    rows.push(h('li', {},
       h('div', {}, h('b', {}, name(n)),
         h('div', { class: 'a-hint' }, n.ready ? '✅ горит' : waiting.has(n.id) ? '⏳ зажигается… обнови страницу через минуту' : 'не зажжён')),
-      n.ready ? h('button', { class: 'btn btn-ghost btn-sm', onclick: async () => {
-        if (!confirm(`Погасить «${name(n)}»? Шар снова станет закрытым. Если он уже успел прочитать письмо — забыть его это не заставит.`)) return;
-        const ok = await mutate(`Погасить ${n.id}`, async (st, files) => {
-          const bytes = await A.repo.readFile('data/keys.json');
-          const keys = bytes ? JSON.parse(new TextDecoder().decode(bytes)) : {};
-          delete keys[n.id];
-          if (keys._at) delete keys._at[n.id];
-          files['data/keys.json'] = jsonBytes(keys);
-        }, 'Шар погашен. У него закроется через 1–2 минуты');
-        if (ok) {
-          n.ready = false;
-          store.set('advent.opening', [...waiting].filter((x) => x !== n.id));
-          renderMain();
-        }
-      } }, 'Погасить') : h('button', { class: 'btn btn-gold btn-sm', onclick: async (e) => {
-        if (!confirm(`Зажечь «${name(n)}» прямо сейчас? У него шар загорится через 1–2 минуты. Погасить потом можно, но если он успеет прочитать письмо — прочитанного не вернёшь.`)) return;
-        const b = e.currentTarget; b.disabled = true;
-        try {
-          await A.repo.dispatch('release.yml', { open: n.id });
-          store.set('advent.opening', [...waiting, n.id]);
-          toast('Зажигаю! Шар загорится у него через 1–2 минуты 🔥', 5000);
-          setTimeout(async () => { A.content = await openContent(A.mainRaw, await C.decryptJSON(A.mainKey, await fetchBin('./data/content.enc'))); renderMain(); }, 90 * 1000);
-          renderMain();
-        } catch (err) { toast('⚠️ ' + err.message, 9000); b.disabled = false; }
-      } }, 'Зажечь')))));
+      n.ready
+        ? h('button', { class: 'btn btn-ghost btn-sm', onclick: turnOff(n.id, `Погасить «${name(n)}»? Шар снова станет закрытым. Если он уже успел прочитать письмо — забыть его это не заставит.`, 'Шар погашен. У него закроется через 1–2 минуты', () => { n.ready = false; }) }, 'Погасить')
+        : h('button', { class: 'btn btn-gold btn-sm', onclick: turnOn(n.id, `Зажечь «${name(n)}» прямо сейчас? У него шар загорится через 1–2 минуты. Погасить потом можно, но если он успеет прочитать письмо — прочитанного не вернёшь.`, 'Зажигаю! Шар загорится у него через 1–2 минуты 🔥') }, 'Зажечь')));
+    if (n.missionSealed) {
+      const mid = n.id + 'm';
+      rows.push(h('li', { style: { paddingLeft: '16px', borderTop: '0', paddingTop: '0' } },
+        h('div', {}, h('span', {}, '🤫 Миссия вечера'),
+          h('div', { class: 'a-hint' }, n.missionOpen ? '👀 открыта' : waiting.has(mid) ? '⏳ открывается… обнови страницу через минуту' : 'скрыта — он видит спойлер')),
+        n.missionOpen
+          ? h('button', { class: 'btn btn-ghost btn-sm', onclick: turnOff(mid, 'Снова спрятать миссию под спойлер?', 'Миссия снова под спойлером. У него — через 1–2 минуты', () => { n.missionOpen = false; }) }, 'Скрыть')
+          : h('button', { class: 'btn btn-gold btn-sm', onclick: turnOn(mid, `Открыть миссию «${name(n)}»? Спойлер у него растает через 1–2 минуты.`, 'Открываю миссию! У него — через 1–2 минуты 🤫') }, 'Открыть миссию')));
+    }
+    if (n.questSealed) {
+      const qid = n.id + 'q';
+      rows.push(h('li', { style: { paddingLeft: '16px', borderTop: '0', paddingTop: '0' } },
+        h('div', {}, h('span', {}, '🎯 Скрытые мини-квесты'),
+          h('div', { class: 'a-hint' }, n.questsOpen ? '👀 открыты' : waiting.has(qid) ? '⏳ открываются… обнови страницу через минуту' : 'скрыты — он видит спойлер')),
+        n.questsOpen
+          ? h('button', { class: 'btn btn-ghost btn-sm', onclick: turnOff(qid, 'Снова спрятать скрытые квесты под спойлер?', 'Квесты снова под спойлером. У него — через 1–2 минуты', () => { n.questsOpen = false; }) }, 'Скрыть')
+          : h('button', { class: 'btn btn-gold btn-sm', onclick: turnOn(qid, `Открыть скрытые мини-квесты «${name(n)}»? У него они появятся через 1–2 минуты.`, 'Открываю квесты! У него — через 1–2 минуты 🎯') }, 'Открыть квесты')));
+    }
+  }
+  return h('section', { class: 'a-card' },
+    h('h2', {}, '🔥 Зажечь шар'),
+    h('p', { class: 'a-hint' }, 'Шар загорается у него только после твоей кнопки — через 1–2 минуты после нажатия. Дата на ёлке — просто обратный отсчёт. Скрытую миссию и скрытые квесты открываешь отдельными кнопками, когда захочешь.'),
+    h('ul', { class: 'a-list' }, rows));
 }
 
 // 1. Подарок под ёлку
@@ -381,7 +414,7 @@ function galleryCard() {
   const sel = h('select', {}, ws.map((w) => h('option', { value: w.id }, weekLabel(w))));
   const file = h('input', { type: 'file', accept: 'image/*' });
   const caption = h('input', { type: 'text', placeholder: 'например: Реклама Красти Краба', maxlength: 60 });
-  const reward = h('input', { type: 'number', value: '1', min: '0', step: '1', style: { width: '90px' } });
+  const reward = h('input', { type: 'number', value: '5', min: '0', step: '1', style: { width: '90px' } });
   const preview = h('div', { class: 'a-preview' });
   const btn = h('button', { class: 'btn btn-gold', type: 'submit' }, '📸 Повесить в галерею');
   let processed = null;
