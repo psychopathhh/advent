@@ -61,7 +61,7 @@ async function readStateFresh() {
   const bytes = await A.repo.readFile('data/state.enc');
   if (!bytes) throw new Error('В репозитории нет data/state.enc');
   const st = await C.decryptJSON(A.mainKey, bytes);
-  for (const k of ['teasers', 'results', 'ledger', 'coupons', 'codes']) st[k] = st[k] || [];
+  for (const k of ['teasers', 'results', 'ledger', 'coupons', 'codes', 'gallery']) st[k] = st[k] || [];
   return st;
 }
 
@@ -179,6 +179,7 @@ function renderMain() {
     openCard(),
     uploadCard(),
     teasersCard(),
+    galleryCard(),
     codesCard(),
     resultsCard(),
     flakesCard(),
@@ -372,6 +373,71 @@ function teasersCard() {
           }, 'Подарок убран. С сайта исчезнет через 1–2 минуты');
         } }, 'Убрать'));
     })) : h('p', { class: 'a-hint' }, 'Пока пусто.'));
+}
+
+// 2½. Галерея: фото, которые он прислал по мини-квестам
+function galleryCard() {
+  const ws = weeks({ withBell: true });
+  const sel = h('select', {}, ws.map((w) => h('option', { value: w.id }, weekLabel(w))));
+  const file = h('input', { type: 'file', accept: 'image/*' });
+  const caption = h('input', { type: 'text', placeholder: 'например: Реклама Красти Краба', maxlength: 60 });
+  const reward = h('input', { type: 'number', value: '1', min: '0', step: '1', style: { width: '90px' } });
+  const preview = h('div', { class: 'a-preview' });
+  const btn = h('button', { class: 'btn btn-gold', type: 'submit' }, '📸 Повесить в галерею');
+  let processed = null;
+  file.addEventListener('change', async () => {
+    processed = null; preview.replaceChildren(h('p', { class: 'a-hint' }, 'Обрабатываю фото…'));
+    try {
+      processed = await processPhoto(file.files[0]);
+      preview.replaceChildren(h('img', { src: processed.previewUrl, alt: 'Предпросмотр' }));
+    } catch (e) { preview.replaceChildren(h('p', { class: 'a-msg' }, '⚠️ ' + e.message)); }
+  });
+
+  const form = h('form', { class: 'a-card' },
+    h('h2', {}, '📸 В галерею'),
+    h('p', { class: 'a-hint' }, 'Фото, которое он прислал по мини-квесту. На сайте оно появится полароидом во вкладке «Галерея».'),
+    label('Шар', sel),
+    label('Фото', file),
+    label('Подпись на полароиде (можно пусто — будет название шара)', caption),
+    label('Снежинки за квест (0 — не начислять)', reward),
+    preview,
+    btn);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!processed) return toast('Сначала выбери фото');
+    const w = ws.find((x) => x.id === sel.value);
+    const id = 'g' + C.randomId(6);
+    const delta = Math.max(0, Math.trunc(Number(reward.value) || 0));
+    const text = caption.value.trim();
+    btn.disabled = true; btn.textContent = 'Шифрую и сохраняю…';
+    const bytes = await C.encryptBytes(A.mainKey, processed.sharp);
+    const ok = await mutate(`Галерея: ${w.id}`, (st, files) => {
+      files[`data/media/${id}.bin`] = bytes;
+      const at = new Date().toISOString();
+      st.gallery.push({ id, weekId: w.id, media: id, mime: 'image/jpeg', caption: text || null, at });
+      if (delta) st.ledger.push({ id: C.randomId(4), delta, reason: `Мини-квест: ${text || w.title}`, at, ref: 'gallery:' + id });
+    }, delta ? `Фото в галерее, +${delta} ❄. На сайте через 1–2 минуты 📸` : 'Фото в галерее. На сайте через 1–2 минуты 📸');
+    if (!ok) { btn.disabled = false; btn.textContent = '📸 Повесить в галерею'; }
+  });
+
+  const list = [...A.state.gallery].sort((a, b) => a.at.localeCompare(b.at));
+  if (list.length) {
+    form.append(h('ul', { class: 'a-list' }, list.map((g) => {
+      const w = ws.find((x) => x.id === g.weekId);
+      return h('li', {},
+        h('div', {}, h('b', {}, g.caption || w?.title || g.weekId), h('div', { class: 'a-hint' }, w ? weekLabel(w) : g.weekId)),
+        h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => {
+          if (!confirm('Убрать это фото из галереи? Снежинки за него тоже спишутся.')) return;
+          mutate(`Убрать из галереи ${g.id}`, (st, files) => {
+            st.gallery = st.gallery.filter((x) => x.id !== g.id);
+            st.ledger = st.ledger.filter((x) => x.ref !== 'gallery:' + g.id);
+            files[`data/media/${g.media}.bin`] = null;
+          }, 'Фото убрано. С сайта исчезнет через 1–2 минуты');
+        } }, 'Убрать'));
+    })));
+  }
+  return form;
 }
 
 // 3. Кодовые слова

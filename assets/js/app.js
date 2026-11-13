@@ -7,7 +7,7 @@ import { renderTree } from './ui/tree.js';
 import { toast, vibrate, pulse } from './ui/dom.js';
 import { envelopeView, letterView, welcomeView, rulesView, teaserView, tournamentView, flakesView } from './ui/views.js';
 import { setScene } from './ui/scenes.js';
-import { shopView, wardrobeView, achievementsView, announceAchievements, pendingCost, settlePending } from './ui/extras.js';
+import { shopView, wardrobeView, galleryView, galleryHasNew, achievementsView, announceAchievements, pendingCost, settlePending } from './ui/extras.js';
 
 const $ = (id) => document.getElementById(id);
 const app = { content: null, state: null, sig: '' };
@@ -172,6 +172,7 @@ function tick() {
 
   // Баланс снежинок
   $('flakes-n').textContent = String(flakesAvailable());
+  $('nav-gallery').classList.toggle('has-new', galleryHasNew(app.state));
 
   // Таймер
   const fresh = nodes.find((n) => n.status === 'new');
@@ -231,7 +232,7 @@ function bindNav() {
 }
 
 function syncNav(kind) {
-  const active = ['tournament', 'shop', 'wardrobe'].includes(kind) ? '#/' + kind : '#/';
+  const active = ['tournament', 'shop', 'wardrobe', 'gallery'].includes(kind) ? '#/' + kind : '#/';
   document.querySelectorAll('.bottom-nav [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === active));
 }
 
@@ -352,12 +353,14 @@ function route() {
   const ctx = { content: app.content, state: app.state, now: now(), onClose: closeOverlay, onTeaser: (tid) => { location.hash = '#/t/' + tid; }, onUnlock, flakes: flakesTotal(), rerender: () => { tick(); route(); } };
   syncNav(kind);
   document.body.dataset.view = kind || '';
+  document.querySelectorAll('.lightbox').forEach((x) => x.remove());
 
   if (!kind) return hideOverlay();
   if (kind === 'tournament') return showOverlay(tournamentView(ctx));
   if (kind === 'flakes') return showOverlay(flakesView(ctx));
   if (kind === 'shop') return showOverlay(shopView({ ...ctx, flakes: flakesAvailable() }));
   if (kind === 'wardrobe') return showOverlay(wardrobeView(ctx));
+  if (kind === 'gallery') { const v = galleryView(ctx); tick(); return showOverlay(v); }
   if (kind === 'achievements') return showOverlay(achievementsView(ctx));
   if (kind === 'welcome') return showOverlay(welcomeView(ctx));
   if (kind === 'rules') return showOverlay(rulesView(ctx));

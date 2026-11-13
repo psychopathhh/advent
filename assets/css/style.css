@@ -194,6 +194,18 @@ body.is-preview .topbar { padding-top: calc(30px + env(safe-area-inset-top)); }
 .section h3 { font-family: var(--serif); font-size: 22px; margin: 0 0 10px; font-weight: 700; color: #5a3f2a; }
 .section ul { margin: 0; padding-left: 20px; }
 .section li { margin: 0 0 8px; }
+/* Маркеры списка в стиле записки: ананас, хлопушка, луна/солнце, мишка, лапка, билет, звезда */
+.letter .section ul { list-style: none; padding-left: 0; }
+.letter .section li { position: relative; padding-left: 28px; }
+.letter .section li::before { content: var(--li, "❄"); position: absolute; left: 0; top: .05em; font-size: 17px; line-height: 1.3; font-family: system-ui, sans-serif; }
+.letter.paper-sea { --li: "🍍"; }
+.letter.paper-typewriter { --li: "🎬"; }
+.letter.paper-map { --li: "🌙"; }
+.letter.paper-map .section li:nth-child(even)::before { content: "☀️"; }
+.letter.paper-mug { --li: "🧸"; }
+.letter.paper-seal { --li: "🐾"; }
+.letter.paper-ticket { --li: "🎟️"; }
+.letter.paper-scroll { --li: "⭐"; }
 .muted { color: var(--ink-dim); }
 .stakes { display: grid; grid-template-columns: 1fr; gap: 10px; }
 @media (min-width: 480px) { .stakes { grid-template-columns: 1fr 1fr; } }
@@ -313,8 +325,19 @@ body.is-preview .topbar { padding-top: calc(30px + env(safe-area-inset-top)); }
 .flake-list .plus { color: var(--gold-2); }
 .flake-list .minus { color: #f19aa8; }
 .bottom-nav { z-index: 35; }
-body[data-view]:not([data-view=""]):not([data-view="tournament"]):not([data-view="shop"]):not([data-view="wardrobe"]) .bottom-nav { display: none; }
-body[data-view="tournament"] .overlay, body[data-view="shop"] .overlay, body[data-view="wardrobe"] .overlay { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+body[data-view]:not([data-view=""]):not([data-view="tournament"]):not([data-view="shop"]):not([data-view="wardrobe"]):not([data-view="gallery"]) .bottom-nav { display: none; }
+body[data-view="tournament"] .overlay, body[data-view="shop"] .overlay, body[data-view="wardrobe"] .overlay, body[data-view="gallery"] .overlay { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+/* новая фотка в галерее — точка на кнопке */
+.bottom-nav button { position: relative; }
+.bottom-nav button.has-new::after { content: ""; position: absolute; top: 6px; right: calc(50% - 16px); width: 8px; height: 8px; border-radius: 50%; background: #ff6b81; box-shadow: 0 0 0 2px rgba(19, 35, 58, .92); }
+/* Галерея */
+.gallery .pl-caption small, .lightbox .pl-caption small { display: block; font-family: var(--sans); font-size: 11px; color: var(--ink-dim); margin-top: 3px; }
+.gallery-empty { text-align: center; padding: 18px 8px 8px; }
+.gallery-empty .polaroid { width: 150px; margin: 0 auto 18px; cursor: default; }
+.lightbox { position: fixed; inset: 0; z-index: 70; background: rgba(5, 10, 20, .92); display: grid; place-items: center; padding: calc(20px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom)); }
+.lightbox .polaroid { --tilt: 0deg; width: min(92vw, 520px); cursor: zoom-out; }
+.lightbox .pl-photo { aspect-ratio: auto; }
+.lightbox .pl-photo canvas { height: auto; max-height: 72vh; object-fit: contain; }
 .timeline li.sub { border-top: 0; padding-top: 2px; }
 
 /* ───────── Этап 2: меню на 4 раздела, Лавка, Гардероб, ачивки ───────── */
@@ -475,20 +498,42 @@ body[data-view="tournament"] .overlay, body[data-view="shop"] .overlay, body[dat
   .sea-weed, .sea-tile span, .sea-rays, .letter.paper-mug::before { animation: none; }
 }
 
-/* Карта маршрута (колокольчик) */
-.letter.paper-map { border-top: 0; border-radius: 4px; padding-top: 12px;
+/* Карта маршрута (колокольчик): ночная карта — звёзды, свечение луны и солнца */
+.letter.paper-map { border-top: 0; border-radius: 6px; padding-top: 12px; color: #E6ECF5;
   background:
-    linear-gradient(90deg, transparent calc(50% - 1px), rgba(120, 100, 60, .18) 50%, transparent calc(50% + 1px)),
-    linear-gradient(0deg, transparent calc(50% - 1px), rgba(120, 100, 60, .14) 50%, transparent calc(50% + 1px)),
-    repeating-linear-gradient(0deg, rgba(150, 130, 90, .16) 0 1px, transparent 1px 34px),
-    repeating-linear-gradient(90deg, rgba(150, 130, 90, .16) 0 1px, transparent 1px 34px),
-    radial-gradient(120% 90% at 50% 40%, #F1EAD6, #DCCFAE); }
+    radial-gradient(55% 35% at 8% 4%, rgba(190, 210, 255, .20), transparent 70%),
+    radial-gradient(55% 35% at 92% 4%, rgba(255, 210, 130, .16), transparent 70%),
+    radial-gradient(80% 30% at 50% 100%, rgba(120, 90, 200, .22), transparent 70%),
+    linear-gradient(90deg, transparent calc(50% - 1px), rgba(170, 200, 255, .09) 50%, transparent calc(50% + 1px)),
+    linear-gradient(0deg, transparent calc(50% - 1px), rgba(170, 200, 255, .07) 50%, transparent calc(50% + 1px)),
+    repeating-linear-gradient(0deg, rgba(170, 200, 255, .05) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(90deg, rgba(170, 200, 255, .05) 0 1px, transparent 1px 34px),
+    linear-gradient(180deg, #0B1530 0%, #111E44 55%, #1A1942 100%);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(170, 200, 255, .14), inset 0 0 80px rgba(110, 130, 255, .10); }
+/* звёзды, которые мерцают */
+.letter.paper-map::before, .letter.paper-map::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(1.4px 1.4px at 14% 12%, #fff, transparent), radial-gradient(1px 1px at 33% 6%, #fff, transparent),
+    radial-gradient(1.2px 1.2px at 71% 15%, #fff, transparent), radial-gradient(1px 1px at 88% 27%, #fff, transparent),
+    radial-gradient(1.3px 1.3px at 6% 38%, #fff, transparent), radial-gradient(1px 1px at 52% 31%, #fff, transparent),
+    radial-gradient(1.2px 1.2px at 94% 52%, #fff, transparent), radial-gradient(1px 1px at 22% 61%, #fff, transparent),
+    radial-gradient(1.4px 1.4px at 77% 70%, #fff, transparent), radial-gradient(1px 1px at 9% 84%, #fff, transparent),
+    radial-gradient(1.2px 1.2px at 46% 90%, #fff, transparent), radial-gradient(1px 1px at 91% 94%, #fff, transparent); }
+.letter.paper-map::after { transform: scale(-1, -1); opacity: .7; animation: twinkle 3.2s ease-in-out infinite alternate; }
+.letter.paper-map::before { animation: twinkle 4.5s ease-in-out infinite; }
+.paper-map > * { position: relative; z-index: 1; }
+.paper-map .kicker { color: #9FB4D9; }
+.paper-map .section { border-top-color: rgba(170, 200, 255, .25); }
+.paper-map .section h3 { color: #E8C27A; }
+.paper-map .muted { color: #A9B6CC; }
+.paper-map input[type=radio] { accent-color: #E8C27A; }
+.paper-map .btn-ghost { color: #E6ECF5; border-color: rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .06); }
+.paper-map legend { color: inherit; }
 .map-head { margin: 0 -6px 8px; }
-.map-head svg { display: block; width: 100%; height: auto; max-height: 150px; }
+.map-head svg { display: block; width: 100%; height: auto; max-height: 150px; filter: drop-shadow(0 0 4px rgba(232, 194, 122, .35)); }
 .map-route { animation: route 14s linear infinite; }
 @keyframes route { to { stroke-dashoffset: -260; } }
-.paper-map .section h3 { color: #6b5a33; }
-@media (prefers-reduced-motion: reduce) { .map-route { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .map-route, .letter.paper-map::before, .letter.paper-map::after { animation: none; } }
 
 /* Машинка: пропечатывание букв */
 .tw-rest { visibility: hidden; }

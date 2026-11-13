@@ -225,6 +225,69 @@ export function announceAchievements(ctx) {
   }
 }
 
+// ───────── Галерея: фото из мини-квестов ─────────
+const GALLERY_SEEN = 'advent.seenGallery';
+
+/** Есть фото, которые он ещё не видел. */
+export const galleryHasNew = (state) => {
+  const seen = new Set(store.get(GALLERY_SEEN, []));
+  return (state.gallery || []).some((g) => !seen.has(g.id));
+};
+
+/** Рисует фото на canvas: квадратом (обложка) или целиком (maxSide). */
+function photoCanvas(img, square, maxSide = 900) {
+  const cv = document.createElement('canvas');
+  if (square) {
+    const size = 320;
+    const scale = Math.max(size / img.width, size / img.height);
+    const tmp = document.createElement('canvas');
+    drawOriented(tmp, img, 1, img.width * scale, img.height * scale, 1);
+    cv.width = size; cv.height = size;
+    cv.getContext('2d').drawImage(tmp, (size - tmp.width) / 2, (size - tmp.height) / 2);
+  } else {
+    const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+    drawOriented(cv, img, 1, img.width * scale, img.height * scale, 1);
+  }
+  return cv;
+}
+
+export function galleryView(ctx) {
+  const items = [...(ctx.state.gallery || [])].sort((a, b) => a.at.localeCompare(b.at));
+  store.set(GALLERY_SEEN, items.map((g) => g.id));
+  const nodes = allNodes(ctx.content);
+  const title = (g) => g.caption || nodes.find((n) => n.id === g.weekId)?.title || '';
+  const sheet = h('div', { class: 'sheet wardrobe gallery' }, h('h2', {}, '📸 Галерея'));
+
+  if (!items.length) {
+    sheet.append(h('div', { class: 'gallery-empty' },
+      h('div', { class: 'polaroid', style: { '--tilt': '-3deg' } }, h('span', { class: 'pl-tape' }),
+        h('div', { class: 'pl-photo' }, h('span', { class: 'pl-icon' }, '📷')), h('span', { class: 'pl-caption' }, 'скоро')),
+      h('p', { class: 'muted-light' }, 'Здесь будут твои кадры из мини-квестов. Присылай их кошке, и они будут появляться на этой стене.')));
+    return h('div', {}, closeBtn(ctx.onClose), sheet);
+  }
+
+  const open = (g, img) => {
+    const box = h('div', { class: 'lightbox', onclick: () => box.remove() },
+      h('div', { class: 'polaroid' }, h('div', { class: 'pl-photo' }, photoCanvas(img, false)),
+        h('span', { class: 'pl-caption' }, title(g), h('small', {}, formatDate(g.at)))));
+    document.body.append(box);
+  };
+
+  sheet.append(h('p', { class: 'muted-light' }, `Кадров на стене: ${items.length}`),
+    h('div', { class: 'polaroids' }, items.map((g, i) => {
+      const photo = h('div', { class: 'pl-photo' }, h('span', { class: 'pl-icon' }, '…'));
+      let img = null;
+      const card = h('button', {
+        class: 'polaroid', style: { '--tilt': `${[2, -3, 1.5, -2, 3, -1.5][i % 6]}deg` },
+        onclick: () => { if (img) open(g, img); },
+      }, h('span', { class: 'pl-tape' }), photo, h('span', { class: 'pl-caption' }, title(g), h('small', {}, formatDate(g.at))));
+      loadMedia(g).then((im) => { img = im; photo.replaceChildren(photoCanvas(im, true)); })
+        .catch((e) => { console.error(e); photo.replaceChildren(h('span', { class: 'pl-icon' }, '⚠️')); });
+      return card;
+    })));
+  return h('div', {}, closeBtn(ctx.onClose), sheet);
+}
+
 export function achievementsView(ctx) {
   const list = computeAchievements(ctx);
   const n = list.filter((a) => a.got).length;
